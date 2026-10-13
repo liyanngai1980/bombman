@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>BombMan</title>
+<style>
+  body { margin:0; background:#1a1a2e; display:flex; flex-direction:column; align-items:center; font-family:monospace; color:#fff; }
+  h1 { margin:10px 0 4px; font-size:20px; color:#ffd166; letter-spacing:4px; }
+  #hud { display:flex; gap:24px; margin-bottom:8px; font-size:14px; }
+  #hud span { background:#16213e; padding:4px 10px; border-radius:6px; }
+  canvas { border:3px solid #444; background:#000; }
+  #msg { margin-top:8px; font-size:13px; color:#9a9ab0; }
+</style>
+</head>
+<body>
+<h1>BOMBMAN</h1>
+<div id="hud">
+  <span>Score: <span id="score">0</span></span>
+  <span>Lives: <span id="lives">3</span></span>
+  <span>Level: <span id="level">1</span></span>
+  <span>Bombs: <span id="bombs">0</span></span>
+</div>
+<canvas id="game" width="600" height="520"></canvas>
+<div id="msg">Arrows / WASD to move &nbsp;|&nbsp; Space to drop bomb &nbsp;|&nbsp; P to pause &nbsp;|&nbsp; R to restart</div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const T = 40, COLS = 15, ROWS = 13, MAX_BOMBS = 2;
+const scoreEl = document.getElementById('score'), livesEl = document.getElementById('lives'),
+      levelEl = document.getElementById('level'), bombsEl = document.getElementById('bombs');
+
+let map, player, enemies, bombs, explosions, score, lives, level, state, t = 0, banner = '', bannerT = 0;
+const KEY = {};
+
+let audioCtx = null;
+function beep(freq, dur, type, vol) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type || 'square'; o.frequency.value = freq;
+    g.gain.value = vol || 0.05;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.stop(audioCtx.currentTime + dur);
+  } catch (e) {}
+}
+
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+  if (!KEY[k] && k === ' ' && state === 'play') placeBomb();
+  if (k === 'p' && (state === 'play' || state === 'pause')) state = state === 'play' ? 'pause' : 'play';
+  if (k === 'r' && state === 'over') reset();
+  KEY[k] = true;
+});
+window.addEventListener('keyup', e => { KEY[e.key.toLowerCase()] = false; });
+window.addEventListener('blur', () => { for (const k in KEY) KEY[k] = false; });
+
+function tileAt(x, y) {
+  if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return 1;
+  return map[y][x];
+}
+function passable(x, y) { const t = tileAt(x, y); return t === 0 || t === 3; }
+function bombAt(x, y) { return bombs.some(b => b.x === x && b.y === y); }
+function fireAt(x, y) { return explosions.some(f => f.x === x && f.y === y); }
+function destructiblesLeft() {
+  let n = 0;
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) if (map[y][x] === 2) n++;
+  return n;
+}
+
+function genLevel(lv) {
+  map = [];
+  for (let y = 0; y < ROWS; y++) {
+    const row = [];
+    for (let x = 0; x < COLS; x++) {
+      if (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) row.push(1);
+      else if (x % 2 === 0 && y % 2 === 0) row.push(1);
+      else row.push(Math.random() < Math.min(0.22 + lv * 0.04, 0.5) ? 2 : 0);
+    }
+    map.push(row);
+  }
+  for (let y = 1; y <= 3; y++) for (let x = 1; x <= 3; x++) map[y][x] = 0;
+  map[ROWS - 2][COLS - 2] = 3;
+  map[ROWS - 2][COLS - 3] = 0;
+  map[ROWS - 3][COLS - 2] = 0;
+  const count = Math.min(2 + lv, 6);
+  enemies = [];
+  let tries = 0;
+  while (enemies.length < count && tries < 500) {
+    tries++;
+    const x = 2 + Math.floor(Math.random() * (COLS - 4));
+    const y = 2 + Math.floor(Math.random() * (ROWS - 4));
+    if (tileAt(x, y) !== 0) continue;
+    if (Math.abs(x - 1) + Math.abs(y - 1) < 5) continue;
+    enemies.push({ x: x * T, y: y * T, tx: x, ty: y, target: null, speed: Math.min(60 + lv * 8, 110), wobble: Math.random() * 6 });
+  }
+  bombs = [];
+  explosions = [];
+}
+
+function reset() {
+  score = 0; lives = 3; level = 1;
+  newLevel();
+  state = 'play';
+  updateHUD();
+}
+function newLevel() {
+  genLevel(level);
+  player = { x: T, y: T, speed: 120, dx: 0, dy: 0 };
+  banner = 'LEVEL ' + level; bannerT = 1.5;
+}
+
+function placeBomb() {
+  const tx = Math.floor((player.x + T / 2) / T), ty = Math.floor((player.y + T / 2) / T);
+  if (bombs.length >= MAX_BOMBS || bombAt(tx, ty) || (tx === 1 && ty === 1)) return;
+  bombs.push({ x: tx, y: ty, timer: 2.0, power: 2 });
+  beep(440, 0.08, 'square', 0.04);
+}
+
+function addFire(x, y) {
+  if (!fireAt(x, y)) explosions.push({ x, y, life: 0.45 });
+}
+function explode(b) {
+  bombs = bombs.filter(o => o !== b);
+  for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+    for (let d = 1; d <= b.power; d++) {
+      const tx = b.x + dx * d, ty = b.y + dy * d;
+      const m = tileAt(tx, ty);
+      if (m === 1) break;
+      if (m === 2) { map[ty][tx] = 0; addFire(tx, ty); break; }
+      if (bombAt(tx, ty)) {
+        addFire(tx, ty);
+        const target = bombs.find(o => o.x === tx && o.y === ty);
+        if (target) target.timer = 0;
+        break;
+      }
+      addFire(tx, ty);
+    }
+  }
+  beep(80, 0.3, 'sawtooth', 0.1);
+}
+
+function canStand(px, py) {
+  const x0 = Math.floor((px + 4) / T), x1 = Math.floor((px + T - 4 - 0.001) / T);
+  const y0 = Math.floor((py + 4) / T), y1 = Math.floor((py + T - 4 - 0.001) / T);
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+    if (!passable(tx, ty) || bombAt(tx, ty) || fireAt(tx, ty)) return false;
+  }
+  return true;
+}
+
+function movePlayer(dt) {
+  let dx = 0, dy = 0;
+  if (KEY['arrowleft'] || KEY['a']) dx = -1;
+  else if (KEY['arrowright'] || KEY['d']) dx = 1;
+  else if (KEY['arrowup'] || KEY['w']) dy = -1;
+  else if (KEY['arrowdown'] || KEY['s']) dy = 1;
+  player.dx = dx; player.dy = dy;
+  const sp = player.speed * dt;
+  if (dx !== 0) {
+    const nx = player.x + dx * sp;
+    if (canStand(nx, player.y)) player.x = nx;
+    else {
+      const tx = Math.floor((player.x + T / 2) / T);
+      player.x = dx > 0 ? (tx + 1) * T - 0.01 : tx * T + 0.01;
+    }
+  }
+  if (dy !== 0) {
+    const ny = player.y + dy * sp;
+    if (canStand(player.x, ny)) player.y = ny;
+    else {
+      const ty = Math.floor((player.y + T / 2) / T);
+      player.y = dy > 0 ? (ty + 1) * T - 0.01 : ty * T + 0.01;
+    }
+  }
+}
+
+function updateEnemy(e, dt) {
+  if (e.target) {
+    const tx = e.target.x, ty = e.target.y;
+    if (!passable(tx, ty) || bombAt(tx, ty) || fireAt(tx, ty)) {
+      e.x = e.tx * T; e.y = e.ty * T; e.target = null;
+    }
+  }
+  if (!e.target) {
+    const opts = [[1,0],[-1,0],[0,1],[0,-1]].sort(() => Math.random() - 0.5);
+    for (const [dx, dy] of opts) {
+      const nx = e.tx + dx, ny = e.ty + dy;
+      if (passable(nx, ny) && !bombAt(nx, ny) && !fireAt(nx, ny)) { e.target = { x: nx, y: ny }; break; }
+    }
+    return;
+  }
+  const txp = e.target.x * T, typ = e.target.y * T;
+  const dx = txp - e.x, dy = typ - e.y;
+  const dist = Math.hypot(dx, dy);
+  const step = e.speed * dt;
+  if (dist <= step) { e.x = txp; e.y = typ; e.tx = e.target.x; e.ty = e.target.y; e.target = null; }
+  else { e.x += dx / dist * step; e.y += dy / dist * step; }
+}
+
+function killPlayer() {
+  lives--;
+  beep(120, 0.4, 'sawtooth', 0.1);
+  if (lives <= 0) state = 'over';
+  else {
+    player.x = T; player.y = T;
+    bombs = bombs.filter(b => !(b.x <= 2 && b.y <= 2));
+  }
+  updateHUD();
+}
+
+function updateHUD() {
+  scoreEl.textContent = score;
+  livesEl.textContent = lives;
+  levelEl.textContent = level;
+  bombsEl.textContent = bombs ? bombs.length : 0;
+}
+
+function update(dt) {
+  t += dt;
+  movePlayer(dt);
+  for (const e of enemies) updateEnemy(e, dt);
+  for (let i = bombs.length - 1; i >= 0; i--) {
+    bombs[i].timer -= dt;
+    if (bombs[i].timer <= 0) explode(bombs[i]);
+  }
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    explosions[i].life -= dt;
+    if (explosions[i].life <= 0) explosions.splice(i, 1);
+  }
+  const ptx = Math.floor((player.x + T / 2) / T), pty = Math.floor((player.y + T / 2) / T);
+  if (fireAt(ptx, pty)) killPlayer();
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const ex = Math.floor((enemies[i].x + T / 2) / T), ey = Math.floor((enemies[i].y + T / 2) / T);
+    if (fireAt(ex, ey)) { enemies.splice(i, 1); score += 100; beep(200, 0.15, 'square', 0.06); }
+  }
+  for (const e of enemies) {
+    if (Math.abs(e.x - player.x) < T - 12 && Math.abs(e.y - player.y) < T - 12) { killPlayer(); break; }
+  }
+  if (state === 'play' && tileAt(ptx, pty) === 3 && destructiblesLeft() === 0) {
+    level++; score += 500;
+    beep(660, 0.25, 'triangle', 0.08);
+    newLevel();
+  }
+  if (bannerT > 0) bannerT -= dt;
+  updateHUD();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawWall(x, y) {
+  const px = x * T, py = y * T;
+  ctx.fillStyle = '#3f3f50'; ctx.fillRect(px, py, T, T);
+  ctx.fillStyle = '#55556e'; ctx.fillRect(px + 3, py + 3, T - 6, T - 6);
+  ctx.fillStyle = '#33333f';
+  ctx.fillRect(px + T - 6, py + 3, 3, T - 6);
+  ctx.fillRect(px + 3, py + T - 6, T - 6, 3);
+}
+function drawBrick(x, y) {
+  const px = x * T, py = y * T;
+  ctx.fillStyle = '#a05a2c'; ctx.fillRect(px, py, T, T);
+  ctx.strokeStyle = '#7a4020'; ctx.lineWidth = 2;
+  ctx.strokeRect(px + 1, py + 1, T - 2, T - 2);
+  ctx.beginPath();
+  ctx.moveTo(px, py + T / 2); ctx.lineTo(px + T, py + T / 2);
+  ctx.moveTo(px + T / 2, py); ctx.lineTo(px + T / 2, py + T / 2);
+  ctx.moveTo(px + T / 4, py + T / 2); ctx.lineTo(px + T / 4, py + T);
+  ctx.moveTo(px + 3 * T / 4, py + T / 2); ctx.lineTo(px + 3 * T / 4, py + T);
+  ctx.stroke();
+}
+function drawExit(x, y, active) {
+  const px = x * T, py = y * T;
+  ctx.fillStyle = '#22301f'; ctx.fillRect(px, py, T, T);
+  const pulse = active ? 0.55 + 0.4 * Math.sin(t * 6) : 0.25;
+  ctx.fillStyle = 'rgba(80,220,120,' + pulse + ')';
+  ctx.fillRect(px + 6, py + 4, T - 12, T - 8);
+  ctx.fillStyle = '#141f12';
+  ctx.fillRect(px + 6, py + 4, T - 12, 4);
+}
+function drawBomb(b) {
+  const cx = b.x * T + T / 2, cy = b.y * T + T / 2;
+  const r = 13 + Math.sin(t * 20) * 1.5;
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath(); ctx.arc(cx - 4, cy - 5, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.quadraticCurveTo(cx + 6, cy - r - 6, cx + 9, cy - r - 4); ctx.stroke();
+}
+function drawFire(f) {
+  const px = f.x * T, py = f.y * T;
+  const a = Math.min(1, f.life / 0.45);
+  ctx.fillStyle = 'rgba(255,120,0,' + a + ')';
+  ctx.fillRect(px + 2, py + 2, T - 4, T - 4);
+  ctx.fillStyle = 'rgba(255,220,80,' + a + ')';
+  ctx.fillRect(px + 8, py + 8, T - 16, T - 16);
+}
+function drawPlayer() {
+  const px = player.x + 4, py = player.y + 4, s = T - 8;
+  ctx.fillStyle = '#3a86ff';
+  roundRect(px, py, s, s, 8); ctx.fill();
+  const ex = player.dx < 0 ? -4 : player.dx > 0 ? 4 : 0;
+  const ey = player.dy < 0 ? -4 : player.dy > 0 ? 4 : 0;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(px + s * 0.25 - 3 + ex, py + s * 0.25 - 3 + ey, 7, 7);
+  ctx.fillRect(px + s * 0.6 - 3 + ex, py + s * 0.25 - 3 + ey, 7, 7);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(px + s * 0.25 - 1 + ex, py + s * 0.25 - 1 + ey, 3, 3);
+  ctx.fillRect(px + s * 0.6 - 1 + ex, py + s * 0.25 - 1 + ey, 3, 3);
+}
+function drawEnemy(e) {
+  const wob = Math.sin(t * 8 + e.wobble) * 1.5;
+  const px = e.x + 4, py = e.y + 4 + wob * 0.5, s = T - 8;
+  ctx.fillStyle = '#b02a37';
+  ctx.beginPath(); ctx.moveTo(px + 6, py + 2); ctx.lineTo(px + 12, py - 6); ctx.lineTo(px + 15, py + 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(px + s - 6, py + 2); ctx.lineTo(px + s - 12, py - 6); ctx.lineTo(px + s - 15, py + 2); ctx.fill();
+  ctx.fillStyle = '#e63946';
+  roundRect(px, py, s, s, 8); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(px + s * 0.22, py + s * 0.3, 8, 8);
+  ctx.fillRect(px + s * 0.6, py + s * 0.3, 8, 8);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(px + s * 0.22 + 2, py + s * 0.3 + 2, 4, 4);
+  ctx.fillRect(px + s * 0.6 + 2, py + s * 0.3 + 2, 4, 4);
+}
+function overlay(title, sub) {
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffd166';
+  ctx.font = 'bold 40px monospace';
+  ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 10);
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px monospace';
+  ctx.fillText(sub, canvas.width / 2, canvas.height / 2 + 25);
+}
+
+function draw() {
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    ctx.fillStyle = (x + y) % 2 ? '#d9c78f' : '#e6d6a3';
+    ctx.fillRect(x * T, y * T, T, T);
+  }
+  const active = destructiblesLeft() === 0;
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    const m = map[y][x];
+    if (m === 1) drawWall(x, y);
+    else if (m === 2) drawBrick(x, y);
+    else if (m === 3) drawExit(x, y, active);
+  }
+  for (const b of bombs) drawBomb(b);
+  for (const f of explosions) drawFire(f);
+  for (const e of enemies) drawEnemy(e);
+  drawPlayer();
+  if (bannerT > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(canvas.width / 2 - 110, 40, 220, 40);
+    ctx.fillStyle = '#ffd166';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(banner, canvas.width / 2, 68);
+  }
+  if (state === 'pause') overlay('PAUSED', 'Press P to continue');
+  if (state === 'over') overlay('GAME OVER', 'Score: ' + score + '  -  Press R to restart');
+}
+
+let last = 0;
+function loop(ts) {
+  const dt = Math.min((ts - last) / 1000, 0.05);
+  last = ts;
+  if (state === 'play') update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+reset();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
