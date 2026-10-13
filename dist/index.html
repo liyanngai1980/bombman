@@ -397,10 +397,10 @@
 
 <div id="hud">
   <span class="hud-badge timer-badge" id="hud-timer">⏱ <b id="timer-text">03:00</b></span>
-  <span class="hud-badge p1">P1 (Blue): <b id="hud-p1-lives">3</b></span>
-  <span class="hud-badge p2" id="hud-badge-p2">P2 (Red): <b id="hud-p2-lives">3</b></span>
-  <span class="hud-badge p3" id="hud-badge-p3">P3 (Yel): <b id="hud-p3-lives">3</b></span>
-  <span class="hud-badge p4" id="hud-badge-p4">P4 (Grn): <b id="hud-p4-lives">3</b></span>
+  <span class="hud-badge p1">P1 (Blue): <b id="hud-p1-lives">2</b></span>
+  <span class="hud-badge p2" id="hud-badge-p2">P2 (Red): <b id="hud-p2-lives">2</b></span>
+  <span class="hud-badge p3" id="hud-badge-p3">P3 (Yel): <b id="hud-p3-lives">2</b></span>
+  <span class="hud-badge p4" id="hud-badge-p4">P4 (Grn): <b id="hud-p4-lives">2</b></span>
   <button id="hud-restart" class="hud-btn" title="Start over">&#8635; Restart</button>
 </div>
 
@@ -679,7 +679,8 @@ function startRound() {
       dx: 0, dy: 0,
       facingX: i % 2 === 0 ? 1 : -1,
       facingY: 0,
-      lives: 3,
+      lives: 2, // Starts with 2 lives
+      kills: 0, // Kills scored
       alive: true,
       maxBombs: 1,
       bombPower: 2,
@@ -988,14 +989,18 @@ function revealItem(tx, ty) {
   }
 }
 
-function addFire(x, y, isBlue) {
-  if (!fireAt(x, y)) explosions.push({ x, y, isBlue: !!isBlue, life: 0.45 });
+function addFire(x, y, isBlue, owner) {
+  if (!fireAt(x, y)) explosions.push({ x, y, isBlue: !!isBlue, owner: owner, life: 0.45 });
+}
+
+function getFireAt(x, y) {
+  return explosions.find(f => f.x === x && f.y === y);
 }
 
 function explode(b) {
   bombs = bombs.filter(o => o.id !== b.id);
   const isBlue = b.blueFire;
-  addFire(b.x, b.y, isBlue);
+  addFire(b.x, b.y, isBlue, b.owner);
 
   for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
     for (let d = 1; d <= b.power; d++) {
@@ -1005,16 +1010,16 @@ function explode(b) {
       if (m === 2) {
         map[ty][tx] = 0;
         revealItem(tx, ty);
-        addFire(tx, ty, isBlue);
+        addFire(tx, ty, isBlue, b.owner);
         if (!isBlue) break;
       } else {
         const targetBomb = bombs.find(o => o.x === tx && o.y === ty);
         if (targetBomb) {
-          addFire(tx, ty, isBlue);
+          addFire(tx, ty, isBlue, b.owner);
           targetBomb.timer = 0;
           break;
         }
-        addFire(tx, ty, isBlue);
+        addFire(tx, ty, isBlue, b.owner);
       }
     }
   }
@@ -1461,15 +1466,27 @@ function getHumanInput(idx) {
   return { dx, dy };
 }
 
-function killFighter(f) {
+function killFighter(f, killer) {
   f.lives--;
   beep(120, 0.4, 'sawtooth', 0.1);
 
+  if (killer && killer !== f) {
+    killer.kills = (killer.kills || 0) + 1;
+  }
+
   if (f.lives <= 0) {
     f.alive = false;
-    banner = f.name + " ELIMINATED!";
-    bannerT = 2.0;
+    if (killer && killer !== f) {
+      banner = "💥 " + killer.name + " KILLED " + f.name + "!";
+    } else {
+      banner = "💀 " + f.name + " ELIMINATED!";
+    }
+    bannerT = 2.2;
   } else {
+    if (killer && killer !== f) {
+      banner = killer.name + " HIT " + f.name + "! (" + f.lives + " life left)";
+      bannerT = 1.6;
+    }
     const sp = SPAWNS[f.id];
     f.x = sp.x * T;
     f.y = sp.y * T;
@@ -1482,19 +1499,84 @@ function killFighter(f) {
 
 function checkMatchEnd() {
   const aliveFighters = fighters.filter(f => f.alive);
-  if (aliveFighters.length <= 1) {
-    state = 'over';
-    const winner = aliveFighters[0];
-    overTitleEl.textContent = winner ? winner.name + " WINS!" : "DRAW!";
-    overTitleEl.style.color = winner ? winner.color.body : "#ffd166";
+  const aliveHumans = fighters.filter(f => f.isHuman && f.alive);
 
-    let statsHtml = '<div style="font-size:14px; font-weight:bold; margin-bottom:6px;">FINAL STANDINGS:</div>';
-    fighters.forEach((f) => {
-      statsHtml += `<div style="color:${f.color.body}; margin:3px 0;">${f.name} - Lives: ${Math.max(0, f.lives)} ${f.alive ? '🏆 WINNER' : '💀 KO'}</div>`;
+  // 1. All human players dead -> GAME OVER immediately!
+  // 2. Or only 1 fighter alive -> MATCH OVER!
+  const allHumansDead = (humanCount > 0 && aliveHumans.length === 0);
+  const onlyOneLeft = (aliveFighters.length <= 1);
+
+  if (allHumansDead || onlyOneLeft) {
+    state = 'over';
+
+    let winner = null;
+    if (onlyOneLeft && aliveFighters.length === 1) {
+      winner = aliveFighters[0];
+      overTitleEl.textContent = winner.isHuman ? (winner.name + " WINS!") : (winner.name + " WINS!");
+      overTitleEl.style.color = winner.color.body;
+      document.getElementById('over-sub').textContent = "VICTORY ROYALE!";
+    } else if (allHumansDead) {
+      overTitleEl.textContent = "GAME OVER";
+      overTitleEl.style.color = "#ff4d5a";
+      document.getElementById('over-sub').textContent = "All human players eliminated";
+    } else {
+      overTitleEl.textContent = "MATCH DRAW";
+      overTitleEl.style.color = "#ffd166";
+      document.getElementById('over-sub').textContent = "All fighters eliminated!";
+    }
+
+    // Match Summary Table showing Lives Left and Kills by players
+    let statsHtml = `
+      <div style="font-size:13px; font-weight:900; color:#ffd166; margin-bottom:8px; letter-spacing:1px; border-bottom:1px solid #484878; padding-bottom:4px;">
+        MATCH SUMMARY
+      </div>
+      <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+        <thead>
+          <tr style="color:#9a9ab8; border-bottom:1px solid #333355;">
+            <th style="padding:4px 6px;">Fighter</th>
+            <th style="padding:4px 6px; text-align:center;">Status</th>
+            <th style="padding:4px 6px; text-align:center;">Lives Left</th>
+            <th style="padding:4px 6px; text-align:center;">Kills</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    const sortedFighters = [...fighters].sort((a, b) => {
+      if (a.alive !== b.alive) return a.alive ? -1 : 1;
+      if (b.lives !== a.lives) return b.lives - a.lives;
+      return (b.kills || 0) - (a.kills || 0);
     });
+
+    sortedFighters.forEach(f => {
+      const isWinner = (winner && winner === f);
+      const statusTag = isWinner ? '<span style="color:#ffd166; font-weight:bold;">👑 Winner</span>' 
+                      : (f.alive ? '<span style="color:#2ec4b6; font-weight:bold;">Survivor</span>' 
+                      : '<span style="color:#888899;">💀 KO</span>');
+      statsHtml += `
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.06); ${isWinner ? 'background:rgba(255,209,102,0.12);' : ''}">
+          <td style="padding:6px; font-weight:bold; color:${f.color.body};">
+            ${f.name}
+          </td>
+          <td style="padding:6px; text-align:center;">${statusTag}</td>
+          <td style="padding:6px; text-align:center; font-weight:bold; color:${f.lives > 0 ? '#fff' : '#666'};">
+            ${Math.max(0, f.lives)}
+          </td>
+          <td style="padding:6px; text-align:center; font-weight:bold; color:#ffd166;">
+            ${f.kills || 0}
+          </td>
+        </tr>
+      `;
+    });
+
+    statsHtml += `
+        </tbody>
+      </table>
+    `;
+
     overStatsEl.innerHTML = statsHtml;
     overScreen.style.display = 'flex';
-    beep(660, 0.4, 'triangle', 0.12);
+    beep(allHumansDead ? 200 : 660, 0.4, 'triangle', 0.12);
   }
 }
 
@@ -1628,7 +1710,8 @@ function update(dt) {
     if (!f.alive) continue;
     const fx = Math.floor((f.x + T / 2) / T);
     const fy = Math.floor((f.y + T / 2) / T);
-    if (fireAt(fx, fy)) killFighter(f);
+    const fire = getFireAt(fx, fy);
+    if (fire) killFighter(f, fire.owner);
   }
 
   if (bannerT > 0) bannerT -= dt;
