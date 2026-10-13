@@ -18,6 +18,7 @@
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
+    min-height: 100vh;
   }
   h1 {
     margin: 4px 0 6px;
@@ -28,12 +29,13 @@
   }
   #hud {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     margin-bottom: 6px;
     font-size: 13px;
     font-weight: bold;
     flex-wrap: wrap;
     justify-content: center;
+    align-items: center;
   }
   #hud span {
     background: #1e1e38;
@@ -41,11 +43,31 @@
     border-radius: 6px;
     border: 1px solid #333355;
   }
+  .hud-btn {
+    background: #2b2b48;
+    border: 1px solid #555577;
+    color: #ffd166;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+  }
+  .hud-btn:active {
+    background: #444470;
+    transform: scale(0.95);
+  }
   #canvas-container {
     position: relative;
     max-width: 100vw;
     display: flex;
     justify-content: center;
+    border-radius: 8px;
+    overflow: hidden;
   }
   canvas {
     background: #000;
@@ -57,7 +79,103 @@
     aspect-ratio: 600 / 520;
     display: block;
   }
-  /* Mobile controls */
+
+  /* Screen Overlays (Title, Pause, Game Over) */
+  .screen-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 15, 28, 0.92);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    text-align: center;
+    z-index: 20;
+  }
+  .overlay-title {
+    font-size: 38px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: #ffd166;
+    text-shadow: 0 4px 16px rgba(255,209,102,0.5);
+    margin-bottom: 2px;
+  }
+  .overlay-sub {
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: #9a9ab8;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+  .card {
+    background: rgba(30, 30, 56, 0.85);
+    border: 1px solid #44446a;
+    border-radius: 12px;
+    padding: 12px 18px;
+    max-width: 440px;
+    width: 90%;
+    margin-bottom: 16px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #e0e0ff;
+  }
+  .guide-badges {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 11px;
+    display: inline-block;
+  }
+  .badge.blue { background: #2b7fff; color: #fff; }
+  .badge.black { background: #280509; border: 1px solid #ff2255; color: #ff88a3; }
+  .badge.red { background: #e63946; color: #fff; }
+
+  .menu-btn {
+    background: linear-gradient(135deg, #ffd166 0%, #f77f00 100%);
+    border: none;
+    color: #121220;
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    padding: 12px 36px;
+    border-radius: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(247,127,0,0.5);
+    transition: transform 0.15s, box-shadow 0.15s;
+    margin: 5px 0;
+  }
+  .menu-btn:active {
+    transform: scale(0.94);
+    box-shadow: 0 2px 8px rgba(247,127,0,0.4);
+  }
+  .menu-btn.secondary {
+    background: #2a2a48;
+    border: 2px solid #555577;
+    color: #ffd166;
+    font-size: 14px;
+    padding: 8px 26px;
+    box-shadow: none;
+  }
+  .menu-btn.secondary:active {
+    background: #3e3e60;
+  }
+  .controls-guide {
+    font-size: 11px;
+    color: #8888aa;
+    margin-top: 10px;
+  }
+
+  /* Mobile bottom controls */
   #controls {
     display: none;
     width: 100%;
@@ -71,6 +189,7 @@
     #controls { display: flex; }
     #desktop-msg { display: none; }
   }
+
   /* Analog Joystick */
   #joystick-base {
     position: relative;
@@ -107,33 +226,47 @@
     transform: translate(0px, 0px);
     transition: transform 0.15s ease-out;
   }
+
   /* Action buttons */
   #act-group {
     display: flex;
-    gap: 14px;
+    gap: 12px;
     align-items: center;
   }
-  #btn-pause {
-    width: 50px;
-    height: 50px;
+  .circle-btn {
     border-radius: 50%;
-    background: #2a2a44;
-    border: 2px solid #555577;
-    color: #ccc;
-    font-size: 11px;
     font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: center;
     touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: pointer;
   }
-  #btn-pause:active {
-    background: #3e3e60;
+  #btn-restart {
+    width: 48px;
+    height: 48px;
+    background: #2b2b48;
+    border: 2px solid #555577;
+    color: #ffd166;
+    font-size: 16px;
   }
+  #btn-restart:active { background: #444470; transform: scale(0.92); }
+
+  #btn-pause {
+    width: 48px;
+    height: 48px;
+    background: #2a2a44;
+    border: 2px solid #555577;
+    color: #ccc;
+    font-size: 12px;
+  }
+  #btn-pause:active { background: #3e3e60; transform: scale(0.92); }
+
   #btn-bomb {
     width: 84px;
     height: 84px;
-    border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #ff4d5a 20%, #b80018 100%);
     border: 3px solid #ffa3ab;
     box-shadow: 0 6px 18px rgba(230,57,70,0.55);
@@ -141,17 +274,12 @@
     font-size: 15px;
     font-weight: 900;
     letter-spacing: 1px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
   }
   #btn-bomb:active {
     transform: scale(0.92);
     box-shadow: 0 2px 8px rgba(230,57,70,0.7);
   }
+
   #desktop-msg {
     margin-top: 8px;
     font-size: 12px;
@@ -162,15 +290,60 @@
 </head>
 <body>
 <h1>BOMBMAN</h1>
+
 <div id="hud">
   <span>Score: <span id="score">0</span></span>
   <span>Lives: <span id="lives">3</span></span>
   <span>Level: <span id="level">1</span></span>
   <span>Rivals: <span id="rivals">1</span></span>
+  <button id="hud-restart" class="hud-btn" title="Start over from Level 1">&#8635; Start Over</button>
 </div>
 
 <div id="canvas-container">
   <canvas id="game" width="600" height="520"></canvas>
+
+  <!-- Title / Start Screen (First Page) -->
+  <div id="title-screen" class="screen-overlay">
+    <div class="overlay-title">BOMBMAN</div>
+    <div class="overlay-sub">&#9733; Battle Royale Edition &#9733;</div>
+    <div class="card">
+      <div class="guide-badges">
+        <span class="badge blue">You</span>
+        <span class="badge black">Rival Bot</span>
+        <span class="badge red">Monster</span>
+      </div>
+      <div>
+        &#128163; <b>Drop Bombs:</b> Blast bricks, hunt rivals, clear paths.<br>
+        &#127939; <b>Dodge Blasts:</b> Flee behind walls when bombs tick.<br>
+        &#128682; <b>Win:</b> Defeat all Rival Bombers to open the Exit Door!
+      </div>
+    </div>
+    <button id="btn-start" class="menu-btn">&#9658; START GAME</button>
+    <div class="controls-guide">
+      <b>Desktop:</b> WASD / Arrows to Move &bull; Space to Bomb &bull; R to Restart<br>
+      <b>Mobile:</b> Analog Joystick on Left &bull; BOMB Button on Right
+    </div>
+  </div>
+
+  <!-- Pause Overlay -->
+  <div id="pause-screen" class="screen-overlay" style="display:none;">
+    <div class="overlay-title" style="font-size:32px;">PAUSED</div>
+    <div class="overlay-sub">Take a breath</div>
+    <button id="btn-resume" class="menu-btn" style="margin-bottom:12px;">RESUME</button>
+    <button id="btn-pause-restart" class="menu-btn secondary" style="margin-bottom:8px;">&#8635; START OVER</button>
+    <button id="btn-pause-menu" class="menu-btn secondary">&#127968; MAIN MENU</button>
+  </div>
+
+  <!-- Game Over Overlay -->
+  <div id="over-screen" class="screen-overlay" style="display:none;">
+    <div class="overlay-title" id="over-title" style="color:#ff4d5a; font-size:32px;">GAME OVER</div>
+    <div class="overlay-sub" id="over-sub">Better luck next time</div>
+    <div class="card" id="over-stats">
+      Final Score: <b id="over-score" style="color:#ffd166;">0</b> &bull; Level: <b id="over-level">1</b>
+    </div>
+    <button id="btn-play-again" class="menu-btn" style="margin-bottom:12px;">&#8635; PLAY AGAIN</button>
+    <button id="btn-over-menu" class="menu-btn secondary">&#127968; MAIN MENU</button>
+  </div>
 </div>
 
 <!-- Touch controls for mobile / iOS -->
@@ -179,13 +352,14 @@
     <div id="joystick-knob"></div>
   </div>
   <div id="act-group">
-    <div id="btn-pause">&#10074;&#10074;</div>
-    <div id="btn-bomb">BOMB</div>
+    <button class="circle-btn" id="btn-restart" title="Start Over">&#8635;</button>
+    <button class="circle-btn" id="btn-pause" title="Pause">&#10074;&#10074;</button>
+    <button class="circle-btn" id="btn-bomb" title="Drop Bomb">BOMB</button>
   </div>
 </div>
 
 <div id="desktop-msg">
-  [Keyboard] Arrows / WASD to move &nbsp;|&nbsp; Space to drop bomb &nbsp;|&nbsp; P to pause &nbsp;|&nbsp; R to restart
+  [Keyboard] Arrows / WASD to move &bull; Space to drop bomb &bull; P to pause &bull; R to restart
 </div>
 
 <script>
@@ -195,7 +369,13 @@ const T = 40, COLS = 15, ROWS = 13;
 const scoreEl = document.getElementById('score'), livesEl = document.getElementById('lives'),
       levelEl = document.getElementById('level'), rivalsEl = document.getElementById('rivals');
 
-let map, player, rivals, monsters, bombs, explosions, score, lives, level, state, t = 0, banner = '', bannerT = 0;
+const titleScreen = document.getElementById('title-screen');
+const pauseScreen = document.getElementById('pause-screen');
+const overScreen = document.getElementById('over-screen');
+const overScoreEl = document.getElementById('over-score');
+const overLevelEl = document.getElementById('over-level');
+
+let map, player, rivals, monsters, bombs, explosions, score, lives, level, state = 'title', t = 0, banner = '', bannerT = 0;
 let nextBombId = 1;
 const KEY = {};
 
@@ -204,6 +384,7 @@ let audioCtx = null;
 function beep(freq, dur, type, vol) {
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.type = type || 'square'; o.frequency.value = freq;
     g.gain.value = vol || 0.05;
@@ -214,13 +395,70 @@ function beep(freq, dur, type, vol) {
   } catch (e) {}
 }
 
+// State management
+function startGame() {
+  beep(520, 0.1, 'triangle', 0.08);
+  titleScreen.style.display = 'none';
+  pauseScreen.style.display = 'none';
+  overScreen.style.display = 'none';
+  score = 0; lives = 3; level = 1;
+  newLevel();
+  state = 'play';
+  updateHUD();
+}
+
+function startOver() {
+  beep(400, 0.1, 'square', 0.06);
+  pauseScreen.style.display = 'none';
+  overScreen.style.display = 'none';
+  score = 0; lives = 3; level = 1;
+  newLevel();
+  state = 'play';
+  updateHUD();
+}
+
+function returnToMenu() {
+  pauseScreen.style.display = 'none';
+  overScreen.style.display = 'none';
+  titleScreen.style.display = 'flex';
+  state = 'title';
+  genLevel(1);
+}
+
+function togglePause() {
+  if (state === 'play') {
+    state = 'pause';
+    pauseScreen.style.display = 'flex';
+  } else if (state === 'pause') {
+    state = 'play';
+    pauseScreen.style.display = 'none';
+  }
+}
+
+// UI Buttons
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('hud-restart').addEventListener('click', startOver);
+document.getElementById('btn-restart').addEventListener('click', startOver);
+
+document.getElementById('btn-resume').addEventListener('click', togglePause);
+document.getElementById('btn-pause').addEventListener('click', togglePause);
+
+document.getElementById('btn-pause-restart').addEventListener('click', startOver);
+document.getElementById('btn-pause-menu').addEventListener('click', returnToMenu);
+
+document.getElementById('btn-play-again').addEventListener('click', startOver);
+document.getElementById('btn-over-menu').addEventListener('click', returnToMenu);
+
 // Keyboard input
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+  if (k === ' ' && state === 'title') { startGame(); return; }
   if (!KEY[k] && k === ' ' && state === 'play') tryPlaceBomb(player);
-  if (k === 'p' && (state === 'play' || state === 'pause')) state = state === 'play' ? 'pause' : 'play';
-  if (k === 'r' && state === 'over') reset();
+  if (k === 'p') togglePause();
+  if (k === 'r') {
+    if (state === 'play' || state === 'pause' || state === 'over') startOver();
+  }
   KEY[k] = true;
 });
 window.addEventListener('keyup', e => { KEY[e.key.toLowerCase()] = false; });
@@ -309,24 +547,12 @@ window.addEventListener('mouseup', () => {
   if (mouseDraggingJoy) { mouseDraggingJoy = false; resetJoystick(); }
 });
 
-// Action buttons
+// Bomb touch button
 const btnBomb = document.getElementById('btn-bomb');
-const btnPause = document.getElementById('btn-pause');
-
 btnBomb.addEventListener('touchstart', e => {
   e.preventDefault();
   if (state === 'play') tryPlaceBomb(player);
-  else if (state === 'over') reset();
 }, { passive: false });
-
-btnPause.addEventListener('touchstart', e => {
-  e.preventDefault();
-  if (state === 'play' || state === 'pause') state = state === 'play' ? 'pause' : 'play';
-}, { passive: false });
-
-canvas.addEventListener('click', () => {
-  if (state === 'over') reset();
-});
 
 // Map helpers
 function tileAt(x, y) {
@@ -429,7 +655,7 @@ function moveEntity(ent, vx, vy, speed, dt) {
         const diffX = ent.x - centerTileX;
         if (Math.abs(diffX) > 0.5 && Math.abs(diffX) <= 15) {
           const nudgeX = ent.x - Math.sign(diffX) * Math.min(Math.abs(diffX), stepY * 0.9);
-          if (canFit(nudgeX, ent.y, ent)) ent.x = nudgeX;
+          if (canFit(nudgeX, ent.y, ent)) ent.y = nudgeX;
         }
       }
       let s = stepY;
@@ -481,7 +707,7 @@ function explode(b) {
   beep(80, 0.3, 'sawtooth', 0.1);
 }
 
-// Danger map: which tiles are in the blast zone of any active bomb or fire
+// Danger map
 function getDangerMap() {
   const danger = {};
   for (const b of bombs) {
@@ -531,7 +757,7 @@ function findPath(sx, sy, isGoalFn, isPassableFn) {
   return null;
 }
 
-// Find safe escape tile away from active bomb blasts
+// Find safe escape tile
 function findSafeEscape(sx, sy, danger) {
   return findPath(
     sx, sy,
@@ -560,11 +786,11 @@ function genLevel(lv) {
   map[ROWS - 2][COLS - 3] = 0;
   map[ROWS - 3][COLS - 2] = 0;
 
-  // Clear rival spawn corners (top-right and bottom-left)
+  // Clear rival spawn corners
   map[1][COLS - 2] = 0; map[1][COLS - 3] = 0; map[2][COLS - 2] = 0;
   map[ROWS - 2][1] = 0; map[ROWS - 3][1] = 0; map[ROWS - 2][2] = 0;
 
-  // Spawn Rival PC Bombers (competitive bots)
+  // Spawn Rival PC Bombers
   const rivalCount = lv >= 3 ? 2 : 1;
   rivals = [];
   const rivalSpawns = [
@@ -583,11 +809,11 @@ function genLevel(lv) {
       bombCooldown: 1.5 + Math.random(),
       decisionTimer: 0,
       path: null,
-      mode: 'hunt' // 'hunt' | 'flee' | 'clear'
+      mode: 'hunt'
     });
   }
 
-  // Spawn monsters (red chasers)
+  // Spawn monsters
   monsters = [];
   const monsterCount = Math.min(1 + lv, 4);
   let tries = 0;
@@ -609,13 +835,6 @@ function genLevel(lv) {
   explosions = [];
 }
 
-function reset() {
-  score = 0; lives = 3; level = 1;
-  newLevel();
-  state = 'play';
-  updateHUD();
-}
-
 function newLevel() {
   genLevel(level);
   player = {
@@ -629,17 +848,14 @@ function newLevel() {
   bannerT = 1.6;
 }
 
-// Player movement update with analog joystick support
+// Player movement
 function updatePlayer(dt) {
   let vx = 0, vy = 0;
-
-  // Keyboard input (-1, 0, 1)
   if (KEY['arrowleft'] || KEY['a']) vx -= 1;
   if (KEY['arrowright'] || KEY['d']) vx += 1;
   if (KEY['arrowup'] || KEY['w']) vy -= 1;
   if (KEY['arrowdown'] || KEY['s']) vy += 1;
 
-  // If analog joystick is active, it takes priority and gives continuous floats (-1.0 to 1.0)
   if (analogX !== 0 || analogY !== 0) {
     vx = analogX;
     vy = analogY;
@@ -649,7 +865,7 @@ function updatePlayer(dt) {
   moveEntity(player, vx, vy, player.speed, dt);
 }
 
-// Rival PC Bot AI: Competes to hunt player, blow up bricks, place bombs, and flee safely!
+// Rival PC Bot AI
 function updateRival(r, dt, danger) {
   r.bombCooldown -= dt;
   r.decisionTimer -= dt;
@@ -660,7 +876,6 @@ function updateRival(r, dt, danger) {
   const py = Math.floor((player.y + T / 2) / T);
   const isThreatened = danger[rx + ',' + ry];
 
-  // 1. SURVIVAL FIRST: If standing in danger zone, flee to safe tile immediately!
   if (isThreatened) {
     if (r.mode !== 'flee' || !r.path || r.path.length === 0 || r.decisionTimer <= 0) {
       r.mode = 'flee';
@@ -668,18 +883,15 @@ function updateRival(r, dt, danger) {
       r.path = findSafeEscape(rx, ry, danger);
     }
   } else {
-    // 2. SAFE: Can attack or clear paths
     if (r.mode === 'flee') {
       r.mode = 'hunt';
       r.path = null;
     }
 
-    // Check if rival should drop a bomb to attack player
     const distToPlayer = Math.abs(rx - px) + Math.abs(ry - py);
     const inlineWithPlayer = (rx === px && Math.abs(ry - py) <= 3) || (ry === py && Math.abs(rx - px) <= 3);
 
     if (r.bombCooldown <= 0 && (distToPlayer <= 2 || inlineWithPlayer)) {
-      // Simulate placing a bomb: does a safe escape route exist?
       const simDanger = Object.assign({}, danger);
       simDanger[rx + ',' + ry] = true;
       for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
@@ -700,7 +912,6 @@ function updateRival(r, dt, danger) {
       }
     }
 
-    // Pathfinding towards player (or clearing blocking bricks)
     if (r.mode !== 'flee' && r.decisionTimer <= 0) {
       r.decisionTimer = 0.4;
       r.path = findPath(
@@ -709,7 +920,6 @@ function updateRival(r, dt, danger) {
         (nx, ny) => passable(nx, ny) && !bombAt(nx, ny) && !danger[nx + ',' + ny]
       );
 
-      // If blocked by bricks, find path that can blow through bricks!
       if (!r.path) {
         const brickPath = findPath(
           rx, ry,
@@ -736,7 +946,6 @@ function updateRival(r, dt, danger) {
     }
   }
 
-  // Follow planned path
   let dirX = 0, dirY = 0;
   if (r.path && r.path.length > 0) {
     const next = r.path[0];
@@ -759,7 +968,7 @@ function updateRival(r, dt, danger) {
   moveEntity(r, dirX, dirY, r.speed, dt);
 }
 
-// Monster update (dumb chasers)
+// Monster update
 function updateMonster(m, dt) {
   if (m.target) {
     const tx = m.target.x, ty = m.target.y;
@@ -795,8 +1004,12 @@ function updateMonster(m, dt) {
 function killPlayer() {
   lives--;
   beep(120, 0.4, 'sawtooth', 0.1);
-  if (lives <= 0) state = 'over';
-  else {
+  if (lives <= 0) {
+    state = 'over';
+    overScoreEl.textContent = score;
+    overLevelEl.textContent = level;
+    overScreen.style.display = 'flex';
+  } else {
     player.x = T; player.y = T;
     player.insideBombs.clear();
     bombs = bombs.filter(b => !(b.x <= 2 && b.y <= 2));
@@ -842,7 +1055,7 @@ function update(dt) {
     const ry = Math.floor((rivals[i].y + T / 2) / T);
     if (fireAt(rx, ry)) {
       rivals.splice(i, 1);
-      score += 400; // Big bonus for defeating rival PC player
+      score += 400;
       beep(260, 0.25, 'triangle', 0.1);
     }
   }
@@ -866,7 +1079,7 @@ function update(dt) {
     }
   }
 
-  // Next level condition: all rivals defeated & exit door reached (or all bricks cleared)
+  // Next level condition
   const exitReady = rivals.length === 0;
   if (state === 'play' && tileAt(ptx, pty) === 3 && exitReady) {
     level++;
@@ -938,10 +1151,8 @@ function drawBomb(b) {
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.beginPath(); ctx.arc(cx - 4, cy - 5, 4, 0, Math.PI * 2); ctx.fill();
 
-  // Fuse
   ctx.strokeStyle = '#f39c12'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.quadraticCurveTo(cx + 6, cy - r - 6, cx + 9, cy - r - 4); ctx.stroke();
-  // Spark
   ctx.fillStyle = Math.sin(t * 30) > 0 ? '#fffa65' : '#ff3838';
   ctx.beginPath(); ctx.arc(cx + 9, cy - r - 4, 3, 0, Math.PI * 2); ctx.fill();
 }
@@ -957,13 +1168,11 @@ function drawFire(f) {
   ctx.fillRect(px + 14, py + 14, T - 28, T - 28);
 }
 
-// Player (Blue Bomberman)
 function drawPlayer() {
   const px = player.x + 4, py = player.y + 4, s = T - 8;
   ctx.fillStyle = '#2b7fff';
   roundRect(px, py, s, s, 8); ctx.fill();
 
-  // Face visor
   ctx.fillStyle = '#ffdfba';
   roundRect(px + 4, py + 6, s - 8, s - 14, 5); ctx.fill();
 
@@ -973,12 +1182,10 @@ function drawPlayer() {
   ctx.fillRect(px + s * 0.3 - 2 + ex, py + s * 0.38 + ey, 4, 6);
   ctx.fillRect(px + s * 0.7 - 2 + ex, py + s * 0.38 + ey, 4, 6);
 
-  // Antenna pom-pom
   ctx.fillStyle = '#ff0055';
   ctx.beginPath(); ctx.arc(px + s / 2, py - 2, 4, 0, Math.PI * 2); ctx.fill();
 }
 
-// Rival PC Bot (Dark Shadow Bomberman)
 function drawRival(r) {
   const px = r.x + 4, py = r.y + 4, s = T - 8;
   ctx.fillStyle = '#1c1c2e';
@@ -986,23 +1193,19 @@ function drawRival(r) {
   ctx.strokeStyle = '#e63946'; ctx.lineWidth = 2;
   roundRect(px, py, s, s, 8); ctx.stroke();
 
-  // Visor
   ctx.fillStyle = '#280509';
   roundRect(px + 4, py + 6, s - 8, s - 14, 5); ctx.fill();
 
-  // Glowing evil eyes
   const ex = r.dx < 0 ? -3 : r.dx > 0 ? 3 : 0;
   const ey = r.dy < 0 ? -2 : r.dy > 0 ? 2 : 0;
   ctx.fillStyle = '#ff2255';
   ctx.fillRect(px + s * 0.28 - 2 + ex, py + s * 0.4 + ey, 5, 4);
   ctx.fillRect(px + s * 0.72 - 3 + ex, py + s * 0.4 + ey, 5, 4);
 
-  // Horns / antenna
   ctx.fillStyle = '#ffd166';
   ctx.beginPath(); ctx.arc(px + s / 2, py - 2, 4, 0, Math.PI * 2); ctx.fill();
 }
 
-// Red monster
 function drawMonster(m) {
   const wob = Math.sin(t * 8 + m.wobble) * 2;
   const px = m.x + 4, py = m.y + 4 + wob * 0.5, s = T - 8;
@@ -1017,20 +1220,7 @@ function drawMonster(m) {
   ctx.fillRect(px + s * 0.62 + 2, py + s * 0.28 + 2, 3, 3);
 }
 
-function overlay(title, sub) {
-  ctx.fillStyle = 'rgba(0,0,0,0.7)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffd166';
-  ctx.font = 'bold 36px monospace';
-  ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 10);
-  ctx.fillStyle = '#fff';
-  ctx.font = '15px monospace';
-  ctx.fillText(sub, canvas.width / 2, canvas.height / 2 + 25);
-}
-
 function draw() {
-  // Tile background
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
       ctx.fillStyle = (x + y) % 2 ? '#d9c78f' : '#e6d6a3';
@@ -1038,7 +1228,7 @@ function draw() {
     }
   }
 
-  const exitReady = rivals.length === 0;
+  const exitReady = rivals && rivals.length === 0;
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
       const m = map[y][x];
@@ -1048,13 +1238,13 @@ function draw() {
     }
   }
 
-  for (const b of bombs) drawBomb(b);
-  for (const f of explosions) drawFire(f);
-  for (const m of monsters) drawMonster(m);
-  for (const r of rivals) drawRival(r);
-  drawPlayer();
+  if (bombs) for (const b of bombs) drawBomb(b);
+  if (explosions) for (const f of explosions) drawFire(f);
+  if (monsters) for (const m of monsters) drawMonster(m);
+  if (rivals) for (const r of rivals) drawRival(r);
+  if (player) drawPlayer();
 
-  if (bannerT > 0) {
+  if (bannerT > 0 && state === 'play') {
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(canvas.width / 2 - 150, 36, 300, 44);
     ctx.fillStyle = '#ffd166';
@@ -1062,9 +1252,6 @@ function draw() {
     ctx.textAlign = 'center';
     ctx.fillText(banner, canvas.width / 2, 65);
   }
-
-  if (state === 'pause') overlay('PAUSED', 'Press P or Pause button to resume');
-  if (state === 'over') overlay('GAME OVER', 'Tap screen or press R to restart');
 }
 
 let last = 0;
@@ -1076,7 +1263,10 @@ function loop(ts) {
   requestAnimationFrame(loop);
 }
 
-reset();
+// Generate initial preview board for title screen
+genLevel(1);
+player = { x: T, y: T, speed: 125, dx: 0, dy: 0, maxBombs: 2, insideBombs: new Set() };
+updateHUD();
 requestAnimationFrame(loop);
 </script>
 </body>
