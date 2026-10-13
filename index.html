@@ -314,7 +314,7 @@
       </div>
       <div>
         &#128163; <b>Drop Bombs:</b> Blast bricks, hunt rivals, clear paths.<br>
-        &#127939; <b>Dodge Blasts:</b> Flee behind walls when bombs tick.<br>
+        &#127939; <b>Only Bombs Kill:</b> Touching enemies is safe! Dodge the fire blasts.<br>
         &#128682; <b>Win:</b> Defeat all Rival Bombers to open the Exit Door!
       </div>
     </div>
@@ -1100,14 +1100,6 @@ function update(dt) {
       monsters.splice(i, 1);
       score += 150;
       beep(200, 0.15, 'square', 0.06);
-    }
-  }
-
-  // Check monster touch player
-  for (const m of monsters) {
-    if (Math.abs(m.x - player.x) < T - 12 && Math.abs(m.y - player.y) < T - 12) {
-      killPlayer();
-      break;
     }
   }
 
