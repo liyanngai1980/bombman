@@ -9,7 +9,7 @@
   body {
     margin: 0;
     padding: 6px;
-    background: #141424;
+    background: #121220;
     color: #fff;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
     display: flex;
@@ -71,55 +71,72 @@
     #controls { display: flex; }
     #desktop-msg { display: none; }
   }
-  /* D-pad */
-  #dpad {
+  /* Analog Joystick */
+  #joystick-base {
     position: relative;
-    width: 140px;
-    height: 140px;
+    width: 124px;
+    height: 124px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, rgba(32,32,60,0.6) 100%);
+    border: 2px solid rgba(255,255,255,0.22);
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.4);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  .dbtn {
+  #joystick-base::before {
+    content: "";
     position: absolute;
-    background: #2a2a48;
-    border: 2px solid #55557a;
-    border-radius: 10px;
-    color: #fff;
-    font-size: 18px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 1px dashed rgba(255,255,255,0.15);
+    pointer-events: none;
+  }
+  #joystick-knob {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #4c74f5 0%, #203ea8 100%);
+    border: 2px solid rgba(255,255,255,0.45);
+    box-shadow: 0 4px 12px rgba(32,62,168,0.6);
+    pointer-events: none;
+    transform: translate(0px, 0px);
+    transition: transform 0.15s ease-out;
+  }
+  /* Action buttons */
+  #act-group {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+  }
+  #btn-pause {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #2a2a44;
+    border: 2px solid #555577;
+    color: #ccc;
+    font-size: 11px;
     font-weight: bold;
     display: flex;
     align-items: center;
     justify-content: center;
     touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
   }
-  .dbtn:active, .dbtn.pressed {
-    background: #4e4ea0;
-    border-color: #8888cc;
-  }
-  #btn-up    { top: 0; left: 46px; width: 48px; height: 46px; border-radius: 12px 12px 4px 4px; }
-  #btn-down  { bottom: 0; left: 46px; width: 48px; height: 46px; border-radius: 4px 4px 12px 12px; }
-  #btn-left  { left: 0; top: 46px; width: 46px; height: 48px; border-radius: 12px 4px 4px 12px; }
-  #btn-right { right: 0; top: 46px; width: 46px; height: 48px; border-radius: 4px 12px 12px 4px; }
-  #dpad-center {
-    position: absolute;
-    left: 46px; top: 46px;
-    width: 48px; height: 48px;
-    background: #202038;
-    pointer-events: none;
-  }
-  /* Action buttons */
-  #act-group {
-    display: flex;
-    gap: 16px;
-    align-items: center;
+  #btn-pause:active {
+    background: #3e3e60;
   }
   #btn-bomb {
-    width: 82px;
-    height: 82px;
+    width: 84px;
+    height: 84px;
     border-radius: 50%;
-    background: radial-gradient(circle, #e63946 40%, #9d0208 100%);
-    border: 3px solid #ff758f;
-    box-shadow: 0 4px 14px rgba(230,57,70,0.5);
+    background: radial-gradient(circle at 35% 35%, #ff4d5a 20%, #b80018 100%);
+    border: 3px solid #ffa3ab;
+    box-shadow: 0 6px 18px rgba(230,57,70,0.55);
     color: #fff;
     font-size: 15px;
     font-weight: 900;
@@ -133,7 +150,7 @@
   }
   #btn-bomb:active {
     transform: scale(0.92);
-    box-shadow: 0 2px 6px rgba(230,57,70,0.7);
+    box-shadow: 0 2px 8px rgba(230,57,70,0.7);
   }
   #desktop-msg {
     margin-top: 8px;
@@ -158,14 +175,11 @@
 
 <!-- Touch controls for mobile / iOS -->
 <div id="controls">
-  <div id="dpad">
-    <div id="dpad-center"></div>
-    <div class="dbtn" id="btn-up">&#9650;</div>
-    <div class="dbtn" id="btn-down">&#9660;</div>
-    <div class="dbtn" id="btn-left">&#9664;</div>
-    <div class="dbtn" id="btn-right">&#9654;</div>
+  <div id="joystick-base">
+    <div id="joystick-knob"></div>
   </div>
   <div id="act-group">
+    <div id="btn-pause">&#10074;&#10074;</div>
     <div id="btn-bomb">BOMB</div>
   </div>
 </div>
@@ -212,25 +226,103 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { KEY[e.key.toLowerCase()] = false; });
 window.addEventListener('blur', () => { for (const k in KEY) KEY[k] = false; });
 
-// Touch / Mobile D-Pad
-const dpadDirs = { up: false, down: false, left: false, right: false };
-function bindTouch(id, onDown, onUp) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const start = e => { e.preventDefault(); el.classList.add('pressed'); onDown(); };
-  const end = e => { e.preventDefault(); el.classList.remove('pressed'); onUp(); };
-  el.addEventListener('touchstart', start, { passive: false });
-  el.addEventListener('touchend', end, { passive: false });
-  el.addEventListener('touchcancel', end, { passive: false });
-  el.addEventListener('mousedown', start);
-  el.addEventListener('mouseup', end);
-  el.addEventListener('mouseleave', end);
+// Touch / Analog Joystick Controls
+const joyBase = document.getElementById('joystick-base');
+const joyKnob = document.getElementById('joystick-knob');
+let joystickTouchId = null;
+let analogX = 0, analogY = 0;
+
+function updateJoystick(clientX, clientY) {
+  const rect = joyBase.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const rawDx = clientX - centerX;
+  const rawDy = clientY - centerY;
+  const dist = Math.hypot(rawDx, rawDy);
+  const maxRadius = rect.width / 2 - 10;
+  const deadzone = 7;
+
+  if (dist < deadzone) {
+    analogX = 0;
+    analogY = 0;
+    joyKnob.style.transform = 'translate(0px, 0px)';
+  } else {
+    const clampedDist = Math.min(dist, maxRadius);
+    const knobX = (rawDx / dist) * clampedDist;
+    const knobY = (rawDy / dist) * clampedDist;
+    joyKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+
+    const intensity = (clampedDist - deadzone) / (maxRadius - deadzone);
+    analogX = (rawDx / dist) * intensity;
+    analogY = (rawDy / dist) * intensity;
+  }
 }
-bindTouch('btn-up',    () => { dpadDirs.up = true; },    () => { dpadDirs.up = false; });
-bindTouch('btn-down',  () => { dpadDirs.down = true; },  () => { dpadDirs.down = false; });
-bindTouch('btn-left',  () => { dpadDirs.left = true; },  () => { dpadDirs.left = false; });
-bindTouch('btn-right', () => { dpadDirs.right = true; }, () => { dpadDirs.right = false; });
-bindTouch('btn-bomb',  () => { if (state === 'play') tryPlaceBomb(player); else if (state === 'over') reset(); }, () => {});
+
+function resetJoystick() {
+  joystickTouchId = null;
+  analogX = 0;
+  analogY = 0;
+  joyKnob.style.transition = 'transform 0.15s ease-out';
+  joyKnob.style.transform = 'translate(0px, 0px)';
+}
+
+joyBase.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const touch = e.changedTouches[0];
+  joystickTouchId = touch.identifier;
+  joyKnob.style.transition = 'none';
+  updateJoystick(touch.clientX, touch.clientY);
+}, { passive: false });
+
+window.addEventListener('touchmove', e => {
+  if (joystickTouchId === null) return;
+  for (const touch of e.changedTouches) {
+    if (touch.identifier === joystickTouchId) {
+      updateJoystick(touch.clientX, touch.clientY);
+      break;
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', e => {
+  if (joystickTouchId === null) return;
+  for (const touch of e.changedTouches) {
+    if (touch.identifier === joystickTouchId) {
+      resetJoystick();
+      break;
+    }
+  }
+});
+window.addEventListener('touchcancel', () => { if (joystickTouchId !== null) resetJoystick(); });
+
+// Mouse fallback for joystick on desktop testing
+let mouseDraggingJoy = false;
+joyBase.addEventListener('mousedown', e => {
+  mouseDraggingJoy = true;
+  joyKnob.style.transition = 'none';
+  updateJoystick(e.clientX, e.clientY);
+});
+window.addEventListener('mousemove', e => {
+  if (mouseDraggingJoy) updateJoystick(e.clientX, e.clientY);
+});
+window.addEventListener('mouseup', () => {
+  if (mouseDraggingJoy) { mouseDraggingJoy = false; resetJoystick(); }
+});
+
+// Action buttons
+const btnBomb = document.getElementById('btn-bomb');
+const btnPause = document.getElementById('btn-pause');
+
+btnBomb.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (state === 'play') tryPlaceBomb(player);
+  else if (state === 'over') reset();
+}, { passive: false });
+
+btnPause.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (state === 'play' || state === 'pause') state = state === 'play' ? 'pause' : 'play';
+}, { passive: false });
 
 canvas.addEventListener('click', () => {
   if (state === 'over') reset();
@@ -278,10 +370,16 @@ function canFit(px, py, ent) {
   return true;
 }
 
-// Robust entity movement with corner sliding assist & clamping
-function moveEntity(ent, dx, dy, speed, dt) {
-  const step = speed * dt;
-  if (step <= 0) return;
+// Smooth Analog entity movement with corner sliding assist & clamping
+function moveEntity(ent, vx, vy, speed, dt) {
+  const mag = Math.hypot(vx, vy);
+  let nx = vx, ny = vy;
+  if (mag > 1) { nx /= mag; ny /= mag; }
+
+  const stepX = Math.abs(nx) * speed * dt;
+  const dirX = Math.sign(nx);
+  const stepY = Math.abs(ny) * speed * dt;
+  const dirY = Math.sign(ny);
 
   // Update insideBombs: once entity leaves the bomb tile, it becomes a solid obstacle
   if (ent.insideBombs && ent.insideBombs.size > 0) {
@@ -296,44 +394,47 @@ function moveEntity(ent, dx, dy, speed, dt) {
     }
   }
 
-  // Horizontal move
-  if (dx !== 0) {
-    const targetX = ent.x + dx * step;
+  // Horizontal movement
+  if (dirX !== 0 && stepX > 0) {
+    const targetX = ent.x + dirX * stepX;
     if (canFit(targetX, ent.y, ent)) {
       ent.x = targetX;
     } else {
-      // Corner assist: align Y to tile center if within 14px
-      const centerTileY = Math.floor((ent.y + T / 2) / T) * T;
-      const diffY = ent.y - centerTileY;
-      if (Math.abs(diffY) > 0.5 && Math.abs(diffY) <= 14) {
-        const nudgeY = ent.y - Math.sign(diffY) * Math.min(Math.abs(diffY), step * 0.9);
-        if (canFit(ent.x, nudgeY, ent)) ent.y = nudgeY;
+      // Corner assist: align Y to corridor center if moving horizontally
+      if (Math.abs(nx) >= Math.abs(ny) * 0.7) {
+        const centerTileY = Math.floor((ent.y + T / 2) / T) * T;
+        const diffY = ent.y - centerTileY;
+        if (Math.abs(diffY) > 0.5 && Math.abs(diffY) <= 15) {
+          const nudgeY = ent.y - Math.sign(diffY) * Math.min(Math.abs(diffY), stepX * 0.9);
+          if (canFit(ent.x, nudgeY, ent)) ent.y = nudgeY;
+        }
       }
-      // Step closer up to wall boundary (no jumping)
-      let s = step;
+      let s = stepX;
       while (s >= 0.5) {
-        if (canFit(ent.x + dx * s, ent.y, ent)) { ent.x += dx * s; break; }
+        if (canFit(ent.x + dirX * s, ent.y, ent)) { ent.x += dirX * s; break; }
         s *= 0.5;
       }
     }
   }
 
-  // Vertical move
-  if (dy !== 0) {
-    const targetY = ent.y + dy * step;
+  // Vertical movement
+  if (dirY !== 0 && stepY > 0) {
+    const targetY = ent.y + dirY * stepY;
     if (canFit(ent.x, targetY, ent)) {
       ent.y = targetY;
     } else {
-      // Corner assist: align X to tile center if within 14px
-      const centerTileX = Math.floor((ent.x + T / 2) / T) * T;
-      const diffX = ent.x - centerTileX;
-      if (Math.abs(diffX) > 0.5 && Math.abs(diffX) <= 14) {
-        const nudgeX = ent.x - Math.sign(diffX) * Math.min(Math.abs(diffX), step * 0.9);
-        if (canFit(nudgeX, ent.y, ent)) ent.x = nudgeX;
+      // Corner assist: align X to corridor center if moving vertically
+      if (Math.abs(ny) >= Math.abs(nx) * 0.7) {
+        const centerTileX = Math.floor((ent.x + T / 2) / T) * T;
+        const diffX = ent.x - centerTileX;
+        if (Math.abs(diffX) > 0.5 && Math.abs(diffX) <= 15) {
+          const nudgeX = ent.x - Math.sign(diffX) * Math.min(Math.abs(diffX), stepY * 0.9);
+          if (canFit(nudgeX, ent.y, ent)) ent.x = nudgeX;
+        }
       }
-      let s = step;
+      let s = stepY;
       while (s >= 0.5) {
-        if (canFit(ent.x, ent.y + dy * s, ent)) { ent.y += dy * s; break; }
+        if (canFit(ent.x, ent.y + dirY * s, ent)) { ent.y += dirY * s; break; }
         s *= 0.5;
       }
     }
@@ -528,16 +629,24 @@ function newLevel() {
   bannerT = 1.6;
 }
 
-// Player movement update
+// Player movement update with analog joystick support
 function updatePlayer(dt) {
-  let dx = 0, dy = 0;
-  if (KEY['arrowleft'] || KEY['a'] || dpadDirs.left) dx = -1;
-  else if (KEY['arrowright'] || KEY['d'] || dpadDirs.right) dx = 1;
-  else if (KEY['arrowup'] || KEY['w'] || dpadDirs.up) dy = -1;
-  else if (KEY['arrowdown'] || KEY['s'] || dpadDirs.down) dy = 1;
+  let vx = 0, vy = 0;
 
-  player.dx = dx; player.dy = dy;
-  moveEntity(player, dx, dy, player.speed, dt);
+  // Keyboard input (-1, 0, 1)
+  if (KEY['arrowleft'] || KEY['a']) vx -= 1;
+  if (KEY['arrowright'] || KEY['d']) vx += 1;
+  if (KEY['arrowup'] || KEY['w']) vy -= 1;
+  if (KEY['arrowdown'] || KEY['s']) vy += 1;
+
+  // If analog joystick is active, it takes priority and gives continuous floats (-1.0 to 1.0)
+  if (analogX !== 0 || analogY !== 0) {
+    vx = analogX;
+    vy = analogY;
+  }
+
+  player.dx = vx; player.dy = vy;
+  moveEntity(player, vx, vy, player.speed, dt);
 }
 
 // Rival PC Bot AI: Competes to hunt player, blow up bricks, place bombs, and flee safely!
@@ -594,7 +703,6 @@ function updateRival(r, dt, danger) {
     // Pathfinding towards player (or clearing blocking bricks)
     if (r.mode !== 'flee' && r.decisionTimer <= 0) {
       r.decisionTimer = 0.4;
-      // First try path to player avoiding danger
       r.path = findPath(
         rx, ry,
         (x, y) => x === px && y === py,
@@ -611,7 +719,6 @@ function updateRival(r, dt, danger) {
         if (brickPath && brickPath.length > 0) {
           const nextStep = brickPath[0];
           if (tileAt(nextStep.x, nextStep.y) === 2 && r.bombCooldown <= 0) {
-            // Drop bomb to blast brick if escape exists
             const simDanger = Object.assign({}, danger);
             simDanger[rx + ',' + ry] = true;
             const escape = findSafeEscape(rx, ry, simDanger);
@@ -874,7 +981,6 @@ function drawPlayer() {
 // Rival PC Bot (Dark Shadow Bomberman)
 function drawRival(r) {
   const px = r.x + 4, py = r.y + 4, s = T - 8;
-  // Dark armor
   ctx.fillStyle = '#1c1c2e';
   roundRect(px, py, s, s, 8); ctx.fill();
   ctx.strokeStyle = '#e63946'; ctx.lineWidth = 2;
@@ -957,7 +1063,7 @@ function draw() {
     ctx.fillText(banner, canvas.width / 2, 65);
   }
 
-  if (state === 'pause') overlay('PAUSED', 'Press P to resume');
+  if (state === 'pause') overlay('PAUSED', 'Press P or Pause button to resume');
   if (state === 'over') overlay('GAME OVER', 'Tap screen or press R to restart');
 }
 
