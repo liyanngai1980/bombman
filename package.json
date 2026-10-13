@@ -1,0 +1,12 @@
+{
+  "name": "bombman",
+  "version": "1.0.0",
+  "description": "BombMan HTML5 Arcade Game",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": ["game", "bomberman", "html5", "canvas"],
+  "author": "jli234",
+  "license": "UNLICENSED"
+}
