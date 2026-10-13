@@ -321,7 +321,7 @@
     <button id="btn-start" class="menu-btn">&#9658; START GAME</button>
     <div class="controls-guide">
       <b>Desktop:</b> WASD / Arrows to Move &bull; Space to Bomb &bull; R to Restart<br>
-      <b>Mobile:</b> Analog Joystick on Left &bull; BOMB Button on Right
+      <b>Mobile:</b> Virtual Joystick on Left &bull; BOMB Button on Right
     </div>
   </div>
 
@@ -464,11 +464,11 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { KEY[e.key.toLowerCase()] = false; });
 window.addEventListener('blur', () => { for (const k in KEY) KEY[k] = false; });
 
-// Touch / Analog Joystick Controls
+// Touch / Joystick Controls - 4-Way Discrete Direction output
 const joyBase = document.getElementById('joystick-base');
 const joyKnob = document.getElementById('joystick-knob');
 let joystickTouchId = null;
-let analogX = 0, analogY = 0;
+let joyDirX = 0, joyDirY = 0;
 
 function updateJoystick(clientX, clientY) {
   const rect = joyBase.getBoundingClientRect();
@@ -478,28 +478,34 @@ function updateJoystick(clientX, clientY) {
   const rawDy = clientY - centerY;
   const dist = Math.hypot(rawDx, rawDy);
   const maxRadius = rect.width / 2 - 10;
-  const deadzone = 7;
+  const deadzone = 12;
 
   if (dist < deadzone) {
-    analogX = 0;
-    analogY = 0;
+    joyDirX = 0;
+    joyDirY = 0;
     joyKnob.style.transform = 'translate(0px, 0px)';
   } else {
+    // Visual knob tracks thumb position
     const clampedDist = Math.min(dist, maxRadius);
     const knobX = (rawDx / dist) * clampedDist;
     const knobY = (rawDy / dist) * clampedDist;
     joyKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
 
-    const intensity = (clampedDist - deadzone) / (maxRadius - deadzone);
-    analogX = (rawDx / dist) * intensity;
-    analogY = (rawDy / dist) * intensity;
+    // Convert to clean 4-way discrete direction (prevents diagonal wall jamming)
+    if (Math.abs(rawDx) > Math.abs(rawDy)) {
+      joyDirX = Math.sign(rawDx);
+      joyDirY = 0;
+    } else {
+      joyDirX = 0;
+      joyDirY = Math.sign(rawDy);
+    }
   }
 }
 
 function resetJoystick() {
   joystickTouchId = null;
-  analogX = 0;
-  analogY = 0;
+  joyDirX = 0;
+  joyDirY = 0;
   joyKnob.style.transition = 'transform 0.15s ease-out';
   joyKnob.style.transform = 'translate(0px, 0px)';
 }
@@ -533,7 +539,7 @@ window.addEventListener('touchend', e => {
 });
 window.addEventListener('touchcancel', () => { if (joystickTouchId !== null) resetJoystick(); });
 
-// Mouse fallback for joystick on desktop testing
+// Mouse fallback for testing
 let mouseDraggingJoy = false;
 joyBase.addEventListener('mousedown', e => {
   mouseDraggingJoy = true;
@@ -582,10 +588,10 @@ function isSolid(tx, ty, ent) {
   return false;
 }
 
-// Bounding box collision test (hitbox 26x26 inside 40x40 tile)
+// Bounding box collision test (hitbox 24x24 inside 40x40 tile, generous clearance)
 function canFit(px, py, ent) {
-  const left = px + 7, right = px + T - 8;
-  const top = py + 7, bottom = py + T - 8;
+  const left = px + 8, right = px + T - 9;
+  const top = py + 8, bottom = py + T - 9;
   const tx0 = Math.floor(left / T), tx1 = Math.floor(right / T);
   const ty0 = Math.floor(top / T), ty1 = Math.floor(bottom / T);
   for (let ty = ty0; ty <= ty1; ty++) {
@@ -596,21 +602,15 @@ function canFit(px, py, ent) {
   return true;
 }
 
-// Smooth Analog entity movement with corner sliding assist & clamping
-function moveEntity(ent, vx, vy, speed, dt) {
-  const mag = Math.hypot(vx, vy);
-  let nx = vx, ny = vy;
-  if (mag > 1) { nx /= mag; ny /= mag; }
+// Flawless, Never-Stuck Cardinal Movement with Lane Auto-Centering
+function moveCharacter(ent, reqDirX, reqDirY, speed, dt) {
+  if (reqDirX === 0 && reqDirY === 0) return;
+  const step = speed * dt;
 
-  const stepX = Math.abs(nx) * speed * dt;
-  const dirX = Math.sign(nx);
-  const stepY = Math.abs(ny) * speed * dt;
-  const dirY = Math.sign(ny);
-
-  // Update insideBombs: once entity leaves the bomb tile, it becomes a solid obstacle
+  // Clear bombs that the entity has completely stepped off
   if (ent.insideBombs && ent.insideBombs.size > 0) {
-    const left = ent.x + 7, right = ent.x + T - 8;
-    const top = ent.y + 7, bottom = ent.y + T - 8;
+    const left = ent.x + 8, right = ent.x + T - 9;
+    const top = ent.y + 8, bottom = ent.y + T - 9;
     for (const bId of Array.from(ent.insideBombs)) {
       const b = bombs.find(o => o.id === bId);
       if (!b) { ent.insideBombs.delete(bId); continue; }
@@ -620,48 +620,47 @@ function moveEntity(ent, vx, vy, speed, dt) {
     }
   }
 
-  // Horizontal movement
-  if (dirX !== 0 && stepX > 0) {
-    const targetX = ent.x + dirX * stepX;
+  // Horizontal Movement
+  if (reqDirX !== 0) {
+    // 1. Auto-center Y to the current corridor row to prevent snagging on walls
+    const curTy = Math.round(ent.y / T);
+    const targetY = curTy * T;
+    const diffY = targetY - ent.y;
+    if (Math.abs(diffY) > 0.5) {
+      ent.y += Math.sign(diffY) * Math.min(Math.abs(diffY), step * 1.5);
+      if (Math.abs(targetY - ent.y) < 1) ent.y = targetY;
+    }
+
+    // 2. Step forward in X
+    const targetX = ent.x + reqDirX * step;
     if (canFit(targetX, ent.y, ent)) {
       ent.x = targetX;
     } else {
-      // Corner assist: align Y to corridor center if moving horizontally
-      if (Math.abs(nx) >= Math.abs(ny) * 0.7) {
-        const centerTileY = Math.floor((ent.y + T / 2) / T) * T;
-        const diffY = ent.y - centerTileY;
-        if (Math.abs(diffY) > 0.5 && Math.abs(diffY) <= 15) {
-          const nudgeY = ent.y - Math.sign(diffY) * Math.min(Math.abs(diffY), stepX * 0.9);
-          if (canFit(ent.x, nudgeY, ent)) ent.y = nudgeY;
-        }
-      }
-      let s = stepX;
-      while (s >= 0.5) {
-        if (canFit(ent.x + dirX * s, ent.y, ent)) { ent.x += dirX * s; break; }
-        s *= 0.5;
+      // Step right up to obstacle boundary without jumping
+      for (let s = step; s >= 0.5; s *= 0.5) {
+        if (canFit(ent.x + reqDirX * s, ent.y, ent)) { ent.x += reqDirX * s; break; }
       }
     }
   }
 
-  // Vertical movement
-  if (dirY !== 0 && stepY > 0) {
-    const targetY = ent.y + dirY * stepY;
+  // Vertical Movement
+  if (reqDirY !== 0) {
+    // 1. Auto-center X to the current corridor column to prevent snagging on walls
+    const curTx = Math.round(ent.x / T);
+    const targetX = curTx * T;
+    const diffX = targetX - ent.x;
+    if (Math.abs(diffX) > 0.5) {
+      ent.x += Math.sign(diffX) * Math.min(Math.abs(diffX), step * 1.5);
+      if (Math.abs(targetX - ent.x) < 1) ent.x = targetX;
+    }
+
+    // 2. Step forward in Y
+    const targetY = ent.y + reqDirY * step;
     if (canFit(ent.x, targetY, ent)) {
       ent.y = targetY;
     } else {
-      // Corner assist: align X to corridor center if moving vertically
-      if (Math.abs(ny) >= Math.abs(nx) * 0.7) {
-        const centerTileX = Math.floor((ent.x + T / 2) / T) * T;
-        const diffX = ent.x - centerTileX;
-        if (Math.abs(diffX) > 0.5 && Math.abs(diffX) <= 15) {
-          const nudgeX = ent.x - Math.sign(diffX) * Math.min(Math.abs(diffX), stepY * 0.9);
-          if (canFit(nudgeX, ent.y, ent)) ent.y = nudgeX;
-        }
-      }
-      let s = stepY;
-      while (s >= 0.5) {
-        if (canFit(ent.x, ent.y + dirY * s, ent)) { ent.y += dirY * s; break; }
-        s *= 0.5;
+      for (let s = step; s >= 0.5; s *= 0.5) {
+        if (canFit(ent.x, ent.y + reqDirY * s, ent)) { ent.y += reqDirY * s; break; }
       }
     }
   }
@@ -766,65 +765,71 @@ function findSafeEscape(sx, sy, danger) {
   );
 }
 
-// Level generator
+// Reasonable, High-Action Competitive Map Generator
 function genLevel(lv) {
   map = [];
+  // 1. Build basic grid with indestructible pillars at even coordinates
   for (let y = 0; y < ROWS; y++) {
     const row = [];
     for (let x = 0; x < COLS; x++) {
       if (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) row.push(1);
       else if (x % 2 === 0 && y % 2 === 0) row.push(1);
-      else row.push(Math.random() < Math.min(0.24 + lv * 0.03, 0.45) ? 2 : 0);
+      else row.push(0);
     }
     map.push(row);
   }
-  // Clear player corner (top-left)
-  for (let y = 1; y <= 3; y++) for (let x = 1; x <= 3; x++) map[y][x] = 0;
 
-  // Clear exit door (bottom-right)
+  // 2. Selectively place bricks: moderate density (24%), keeping avenues open!
+  for (let y = 1; y < ROWS - 1; y++) {
+    for (let x = 1; x < COLS - 1; x++) {
+      if (map[y][x] === 1) continue;
+      // Tactical brick clusters, not sealing hallways
+      if (Math.random() < 0.25) map[y][x] = 2;
+    }
+  }
+
+  // 3. Keep Main Battle Avenues clear so Player and Rival quickly meet!
+  // Top Avenue (direct corridor between Player and Rival)
+  for (let x = 1; x <= 9; x++) map[1][x] = 0;
+  // Clear Player spawn corner (top-left)
+  map[1][1] = 0; map[1][2] = 0; map[1][3] = 0;
+  map[2][1] = 0; map[3][1] = 0;
+
+  // Center battle plaza (open crossway for intense bomb fights)
+  map[5][7] = 0; map[6][7] = 0; map[7][7] = 0;
+  map[5][6] = 0; map[5][8] = 0;
+
+  // Exit Door at bottom right
   map[ROWS - 2][COLS - 2] = 3;
   map[ROWS - 2][COLS - 3] = 0;
   map[ROWS - 3][COLS - 2] = 0;
 
-  // Clear rival spawn corners
-  map[1][COLS - 2] = 0; map[1][COLS - 3] = 0; map[2][COLS - 2] = 0;
-  map[ROWS - 2][1] = 0; map[ROWS - 3][1] = 0; map[ROWS - 2][2] = 0;
-
-  // Spawn Rival PC Bombers
-  const rivalCount = lv >= 3 ? 2 : 1;
+  // 4. Spawn Rival PC Bombers: Clapped close so they meet and battle early!
   rivals = [];
-  const rivalSpawns = [
-    { x: (COLS - 2) * T, y: 1 * T },
-    { x: 1 * T, y: (ROWS - 2) * T }
-  ];
-  for (let i = 0; i < rivalCount; i++) {
-    const sp = rivalSpawns[i];
-    rivals.push({
-      id: 'rival_' + i,
-      x: sp.x, y: sp.y,
-      speed: 105 + Math.min(lv * 4, 25),
-      dx: 0, dy: 0,
-      maxBombs: 1,
-      insideBombs: new Set(),
-      bombCooldown: 1.5 + Math.random(),
-      decisionTimer: 0,
-      path: null,
-      mode: 'hunt'
-    });
+  if (lv === 1) {
+    // Level 1: Single rival placed along the top avenue at (9, 1), clear line of sight!
+    map[1][9] = 0; map[2][9] = 0; map[1][8] = 0;
+    rivals.push(createRival('rival_0', 9 * T, 1 * T, 110));
+  } else {
+    // Level 2+: 2 rivals, one top-right and one left-center heading to the arena!
+    map[1][11] = 0; map[2][11] = 0;
+    map[7][1] = 0; map[7][2] = 0;
+    rivals.push(createRival('rival_0', 11 * T, 1 * T, 115));
+    rivals.push(createRival('rival_1', 1 * T, 7 * T, 115));
   }
 
-  // Spawn monsters
+  // 5. Spawn 1-2 slime monsters as side hazards
   monsters = [];
-  const monsterCount = Math.min(1 + lv, 4);
+  const monsterCount = Math.min(lv, 2);
   let tries = 0;
-  while (monsters.length < monsterCount && tries < 600) {
+  while (monsters.length < monsterCount && tries < 500) {
     tries++;
-    const x = 3 + Math.floor(Math.random() * (COLS - 6));
-    const y = 3 + Math.floor(Math.random() * (ROWS - 6));
-    if (tileAt(x, y) !== 0) continue;
+    const x = 5 + Math.floor(Math.random() * (COLS - 7));
+    const y = 3 + Math.floor(Math.random() * (ROWS - 5));
+    if (tileAt(x, y) !== 0 || (x <= 4 && y <= 4)) continue;
     monsters.push({
       x: x * T, y: y * T,
-      speed: 70 + Math.min(lv * 5, 30),
+      speed: 68 + Math.min(lv * 4, 20),
       dx: 0, dy: 0,
       wobble: Math.random() * 6,
       target: null
@@ -835,37 +840,55 @@ function genLevel(lv) {
   explosions = [];
 }
 
+function createRival(id, px, py, speed) {
+  return {
+    id: id,
+    x: px, y: py,
+    speed: speed,
+    dx: 0, dy: 0,
+    maxBombs: 1,
+    insideBombs: new Set(),
+    bombCooldown: 1.2 + Math.random(),
+    decisionTimer: 0,
+    path: null,
+    mode: 'hunt'
+  };
+}
+
 function newLevel() {
   genLevel(level);
   player = {
     x: T, y: T,
-    speed: 125,
+    speed: 135,
     dx: 0, dy: 0,
     maxBombs: 2,
     insideBombs: new Set()
   };
-  banner = 'LEVEL ' + level;
-  bannerT = 1.6;
+  banner = 'LEVEL ' + level + ' - DEFEAT RIVAL!';
+  bannerT = 1.8;
 }
 
-// Player movement
+// Player movement update (strict 4-way discrete input, no stuck corners)
 function updatePlayer(dt) {
-  let vx = 0, vy = 0;
-  if (KEY['arrowleft'] || KEY['a']) vx -= 1;
-  if (KEY['arrowright'] || KEY['d']) vx += 1;
-  if (KEY['arrowup'] || KEY['w']) vy -= 1;
-  if (KEY['arrowdown'] || KEY['s']) vy += 1;
+  let reqX = 0, reqY = 0;
 
-  if (analogX !== 0 || analogY !== 0) {
-    vx = analogX;
-    vy = analogY;
+  // Keyboard input
+  if (KEY['arrowleft'] || KEY['a']) reqX = -1;
+  else if (KEY['arrowright'] || KEY['d']) reqX = 1;
+  else if (KEY['arrowup'] || KEY['w']) reqY = -1;
+  else if (KEY['arrowdown'] || KEY['s']) reqY = 1;
+
+  // Joystick discrete 4-way override
+  if (joyDirX !== 0 || joyDirY !== 0) {
+    reqX = joyDirX;
+    reqY = joyDirY;
   }
 
-  player.dx = vx; player.dy = vy;
-  moveEntity(player, vx, vy, player.speed, dt);
+  player.dx = reqX; player.dy = reqY;
+  moveCharacter(player, reqX, reqY, player.speed, dt);
 }
 
-// Rival PC Bot AI
+// Rival PC Bot AI: Seeks and battles the player, bombs bricks and flees blasts
 function updateRival(r, dt, danger) {
   r.bombCooldown -= dt;
   r.decisionTimer -= dt;
@@ -891,6 +914,7 @@ function updateRival(r, dt, danger) {
     const distToPlayer = Math.abs(rx - px) + Math.abs(ry - py);
     const inlineWithPlayer = (rx === px && Math.abs(ry - py) <= 3) || (ry === py && Math.abs(rx - px) <= 3);
 
+    // Drop bomb if threatening player and safe escape route exists
     if (r.bombCooldown <= 0 && (distToPlayer <= 2 || inlineWithPlayer)) {
       const simDanger = Object.assign({}, danger);
       simDanger[rx + ',' + ry] = true;
@@ -905,21 +929,23 @@ function updateRival(r, dt, danger) {
       const escapePath = findSafeEscape(rx, ry, simDanger);
       if (escapePath && escapePath.length > 0) {
         tryPlaceBomb(r);
-        r.bombCooldown = 2.5 + Math.random() * 1.5;
+        r.bombCooldown = 2.2 + Math.random();
         r.mode = 'flee';
         r.path = escapePath;
         r.decisionTimer = 0.3;
       }
     }
 
+    // Pathfinding towards player
     if (r.mode !== 'flee' && r.decisionTimer <= 0) {
-      r.decisionTimer = 0.4;
+      r.decisionTimer = 0.35;
       r.path = findPath(
         rx, ry,
         (x, y) => x === px && y === py,
         (nx, ny) => passable(nx, ny) && !bombAt(nx, ny) && !danger[nx + ',' + ny]
       );
 
+      // If blocked by bricks, path through bricks and blast them!
       if (!r.path) {
         const brickPath = findPath(
           rx, ry,
@@ -934,7 +960,7 @@ function updateRival(r, dt, danger) {
             const escape = findSafeEscape(rx, ry, simDanger);
             if (escape && escape.length > 0) {
               tryPlaceBomb(r);
-              r.bombCooldown = 3.0;
+              r.bombCooldown = 2.8;
               r.mode = 'flee';
               r.path = escape;
             }
@@ -946,6 +972,7 @@ function updateRival(r, dt, danger) {
     }
   }
 
+  // Follow planned path with clean cardinal movements
   let dirX = 0, dirY = 0;
   if (r.path && r.path.length > 0) {
     const next = r.path[0];
@@ -965,7 +992,7 @@ function updateRival(r, dt, danger) {
   }
 
   r.dx = dirX; r.dy = dirY;
-  moveEntity(r, dirX, dirY, r.speed, dt);
+  moveCharacter(r, dirX, dirY, r.speed, dt);
 }
 
 // Monster update
@@ -1055,8 +1082,13 @@ function update(dt) {
     const ry = Math.floor((rivals[i].y + T / 2) / T);
     if (fireAt(rx, ry)) {
       rivals.splice(i, 1);
-      score += 400;
+      score += 500;
       beep(260, 0.25, 'triangle', 0.1);
+      if (rivals.length === 0) {
+        banner = 'RIVAL DEFEATED! EXIT UNLOCKED!';
+        bannerT = 2.5;
+        beep(700, 0.35, 'triangle', 0.1);
+      }
     }
   }
 
@@ -1079,7 +1111,7 @@ function update(dt) {
     }
   }
 
-  // Next level condition
+  // Next level condition: All rivals defeated and reached exit door
   const exitReady = rivals.length === 0;
   if (state === 'play' && tileAt(ptx, pty) === 3 && exitReady) {
     level++;
@@ -1128,7 +1160,7 @@ function drawBrick(x, y) {
 function drawExit(x, y, active) {
   const px = x * T, py = y * T;
   ctx.fillStyle = '#22301f'; ctx.fillRect(px, py, T, T);
-  const pulse = active ? 0.6 + 0.35 * Math.sin(t * 6) : 0.2;
+  const pulse = active ? 0.65 + 0.35 * Math.sin(t * 7) : 0.2;
   ctx.fillStyle = 'rgba(80,220,120,' + pulse + ')';
   ctx.fillRect(px + 6, py + 4, T - 12, T - 8);
   ctx.fillStyle = '#141f12';
@@ -1245,10 +1277,10 @@ function draw() {
   if (player) drawPlayer();
 
   if (bannerT > 0 && state === 'play') {
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(canvas.width / 2 - 150, 36, 300, 44);
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(canvas.width / 2 - 160, 36, 320, 44);
     ctx.fillStyle = '#ffd166';
-    ctx.font = 'bold 22px monospace';
+    ctx.font = 'bold 20px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(banner, canvas.width / 2, 65);
   }
@@ -1265,7 +1297,7 @@ function loop(ts) {
 
 // Generate initial preview board for title screen
 genLevel(1);
-player = { x: T, y: T, speed: 125, dx: 0, dy: 0, maxBombs: 2, insideBombs: new Set() };
+player = { x: T, y: T, speed: 135, dx: 0, dy: 0, maxBombs: 2, insideBombs: new Set() };
 updateHUD();
 requestAnimationFrame(loop);
 </script>
