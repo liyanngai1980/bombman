@@ -51,6 +51,23 @@
   .hud-badge.p3 { border-color: #ffd166; color: #ffe699; }
   .hud-badge.p4 { border-color: #2ec4b6; color: #88ede3; }
 
+  .timer-badge {
+    border-color: #ffd166;
+    color: #ffd166;
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+  .timer-badge.doom {
+    border-color: #ff3b30;
+    color: #fff;
+    background: #b00020;
+    animation: doomPulse 0.6s infinite alternate;
+  }
+  @keyframes doomPulse {
+    from { transform: scale(1); box-shadow: 0 0 4px #ff3b30; }
+    to { transform: scale(1.08); box-shadow: 0 0 14px #ff3b30; }
+  }
+
   .hud-btn {
     background: #252542;
     border: 1px solid #555577;
@@ -210,16 +227,12 @@
     box-shadow: none;
   }
 
-  /* ========================================================
-     CONTROLS LAYOUT - COMPLETELY OUTSIDE THE GAME CANVAS!
-     ======================================================== */
-
   /* 1-Player Dedicated Bottom Deck */
   #controls-1p {
     display: none;
     width: 100%;
     max-width: 580px;
-    margin-top: 10px;
+    margin-top: 8px;
     justify-content: space-between;
     align-items: center;
     padding: 4px 14px;
@@ -230,8 +243,8 @@
 
   #joy1-base {
     position: relative;
-    width: 110px;
-    height: 110px;
+    width: 108px;
+    height: 108px;
     border-radius: 50%;
     background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(43,127,255,0.25) 100%);
     border: 2px solid #2b7fff;
@@ -242,8 +255,8 @@
     justify-content: center;
   }
   #joy1-knob {
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #4c74f5 0%, #203ea8 100%);
     border: 2px solid #fff;
@@ -268,8 +281,8 @@
     cursor: pointer;
   }
   .btn-bomb-main {
-    width: 80px;
-    height: 80px;
+    width: 78px;
+    height: 78px;
     background: radial-gradient(circle at 35% 35%, #ff4d5a 20%, #b80018 100%);
     border: 3px solid #ffa3ab;
     box-shadow: 0 4px 16px rgba(230,57,70,0.55);
@@ -280,8 +293,8 @@
   .btn-bomb-main:active { transform: scale(0.92); }
 
   .btn-glove-main {
-    width: 52px;
-    height: 52px;
+    width: 50px;
+    height: 50px;
     background: #232338;
     border: 2px solid #555577;
     color: #777799;
@@ -383,6 +396,7 @@
 <h1>BOMBMAN</h1>
 
 <div id="hud">
+  <span class="hud-badge timer-badge" id="hud-timer">⏱ <b id="timer-text">03:00</b></span>
   <span class="hud-badge p1">P1 (Blue): <b id="hud-p1-lives">3</b></span>
   <span class="hud-badge p2" id="hud-badge-p2">P2 (Red): <b id="hud-p2-lives">3</b></span>
   <span class="hud-badge p3" id="hud-badge-p3">P3 (Yel): <b id="hud-p3-lives">3</b></span>
@@ -392,7 +406,7 @@
 
 <div id="game-arena-wrapper">
 
-  <!-- Multi-player TOP Control Bar (P3 Yellow on Left, P2 Red on Right) -->
+  <!-- Multi-player TOP Control Bar -->
   <div class="multi-bar" id="bar-top">
     <div class="player-pod p3" id="pod-p3">
       <div class="pod-stick" id="stick-p3"><div class="pod-knob" id="knob-p3" style="background:#ffd166;"></div></div>
@@ -410,14 +424,14 @@
     </div>
   </div>
 
-  <!-- THE CANVAS - 100% VISIBLE, NO OVERLAYS BLOCKING THE VIEW! -->
+  <!-- THE CANVAS -->
   <div id="canvas-container">
     <canvas id="game" width="600" height="520"></canvas>
 
     <!-- Title / Start Screen -->
     <div id="title-screen" class="screen-overlay">
       <div class="overlay-title">BOMBMAN</div>
-      <div class="overlay-sub">&#9733; 4-Player Battle Royale &#9733;</div>
+      <div class="overlay-sub">&#9733; 3-Minute Battle &bull; Doom Mode &#9733;</div>
 
       <div class="select-box">
         <div class="select-label">&#127918; CHOOSE HOW MANY PLAYERS:</div>
@@ -433,11 +447,11 @@
           <span class="tag p3">P3 Yellow</span>
           <span class="tag p4">P4 Green</span>
         </div>
-        <div style="font-size:10px; color:#ffd166; margin-top:5px; font-weight:bold;">
-          &#9889; Aggressive &amp; Intelligent AI Bots fill all remaining slots!
+        <div style="font-size:10px; color:#ff4d5a; margin-top:5px; font-weight:bold;">
+          &#9201; 3:00 Timer: Last 30s triggers DOOM MODE shrinking bomb storm!
         </div>
 
-        <div style="margin-top:8px; border-top:1px solid #484878; padding-top:6px; font-weight:bold; color:#ffd166;">
+        <div style="margin-top:6px; border-top:1px solid #484878; padding-top:6px; font-weight:bold; color:#ffd166;">
           &#127873; 6 POWER-UPS (Bots hunt &amp; grab these too!):
         </div>
         <div class="items-mini-grid">
@@ -452,7 +466,7 @@
 
       <button id="btn-start" class="menu-btn">&#9658; START BATTLE</button>
       <div class="controls-guide">
-        <b>Controls are outside the map — 100% full board view!</b><br>
+        <b>Controls outside map — 100% full view!</b><br>
         <b>Keyboard:</b> P1: Arrows+Space &bull; P2: WASD+Q &bull; P3: IJKL+U &bull; P4: Numpad 8456+0
       </div>
     </div>
@@ -475,7 +489,7 @@
     </div>
   </div>
 
-  <!-- Multi-player BOTTOM Control Bar (P1 Blue on Left, P4 Green on Right) -->
+  <!-- Multi-player BOTTOM Control Bar -->
   <div class="multi-bar" id="bar-bottom">
     <div class="player-pod p1" id="pod-p1">
       <div class="pod-stick" id="stick-p1"><div class="pod-knob" id="knob-p1" style="background:#2b7fff;"></div></div>
@@ -526,11 +540,20 @@ let groundItems = [];
 let nextBombId = 1, nextItemId = 1;
 let state = 'title', t = 0, banner = '', bannerT = 0;
 
+// 3-Minute Timer & Doom Mode
+let roundTimeLeft = 180; // 3 minutes = 180 seconds
+let doomActive = false;
+let doomTimer = 0;
+let doomSpiral = [];
+let doomIndex = 0;
+
 const titleScreen = document.getElementById('title-screen');
 const pauseScreen = document.getElementById('pause-screen');
 const overScreen = document.getElementById('over-screen');
 const overTitleEl = document.getElementById('over-title');
 const overStatsEl = document.getElementById('over-stats');
+const hudTimerEl = document.getElementById('hud-timer');
+const timerTextEl = document.getElementById('timer-text');
 const btnP1Glove = document.getElementById('btn-p1-glove');
 
 const COLOR_DEFS = [
@@ -569,6 +592,34 @@ function powerupSound() {
   setTimeout(() => beep(880, 0.16, 'triangle', 0.09), 140);
 }
 
+function doomSirenSound() {
+  beep(400, 0.15, 'sawtooth', 0.12);
+  setTimeout(() => beep(300, 0.2, 'sawtooth', 0.12), 160);
+  setTimeout(() => beep(400, 0.2, 'sawtooth', 0.12), 360);
+}
+
+// Precompute Outer-to-Inner Spiral Coordinates for Doom Mode
+function computeDoomSpiral() {
+  const list = [];
+  let x0 = 1, x1 = COLS - 2;
+  let y0 = 1, y1 = ROWS - 2;
+  while (x0 <= x1 && y0 <= y1) {
+    for (let x = x0; x <= x1; x++) list.push({ x, y: y0 });
+    y0++;
+    for (let y = y0; y <= y1; y++) list.push({ x: x1, y });
+    x1--;
+    if (y0 <= y1) {
+      for (let x = x1; x >= x0; x--) list.push({ x, y: y1 });
+      y1--;
+    }
+    if (x0 <= x1) {
+      for (let y = y1; y >= y0; y--) list.push({ x: x0, y });
+      x0++;
+    }
+  }
+  return list;
+}
+
 // Player Count Selection
 document.querySelectorAll('.p-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -590,17 +641,26 @@ function startGame() {
     document.body.className = 'mode-multi';
   }
 
-  // Adjust pods visibility in multi-player mode
   for (let i = 1; i <= 4; i++) {
     const pod = document.getElementById('pod-p' + i);
     if (pod) pod.style.visibility = i <= humanCount ? 'visible' : 'hidden';
   }
 
   startRound();
-  state = 'play';
 }
 
 function startRound() {
+  state = 'play';
+  pauseScreen.style.display = 'none';
+  overScreen.style.display = 'none';
+
+  roundTimeLeft = 180; // 3 minutes
+  doomActive = false;
+  doomTimer = 0;
+  doomIndex = 0;
+  doomSpiral = computeDoomSpiral();
+  hudTimerEl.classList.remove('doom');
+
   genArena();
   fighters = [];
 
@@ -613,7 +673,9 @@ function startRound() {
       isHuman: isHuman,
       color: COLOR_DEFS[i],
       x: sp.x * T, y: sp.y * T,
-      speed: isHuman ? 135 : 142, // High competitive speed for AI bots
+      prevX: sp.x * T, prevY: sp.y * T,
+      stuckFrames: 0,
+      speed: isHuman ? 135 : 142,
       dx: 0, dy: 0,
       facingX: i % 2 === 0 ? 1 : -1,
       facingY: 0,
@@ -624,7 +686,7 @@ function startRound() {
       blueFire: false,
       hasGlove: false,
       insideBombs: new Set(),
-      bombCooldown: 1.0 + Math.random() * 0.8,
+      bombCooldown: 0.6 + Math.random() * 0.5, // Rapid ready attack
       decisionTimer: 0,
       path: null,
       mode: 'hunt'
@@ -632,7 +694,7 @@ function startRound() {
   }
 
   updateHUD();
-  banner = humanCount === 1 ? 'BATTLE ROYALE - SURVIVE!' : 'BATTLE ROYALE - FIGHT!';
+  banner = humanCount === 1 ? '3:00 BATTLE ROYALE - FIGHT!' : '4-PLAYER BATTLE - FIGHT!';
   bannerT = 2.0;
 }
 
@@ -647,12 +709,12 @@ function togglePause() {
 }
 
 document.getElementById('btn-start').addEventListener('click', startGame);
-document.getElementById('hud-restart').addEventListener('click', () => { if (state === 'play') startRound(); });
+document.getElementById('hud-restart').addEventListener('click', startRound);
 document.getElementById('btn-p1-pause').addEventListener('click', togglePause);
 document.getElementById('btn-resume').addEventListener('click', togglePause);
-document.getElementById('btn-pause-restart').addEventListener('click', () => { pauseScreen.style.display = 'none'; startRound(); state = 'play'; });
+document.getElementById('btn-pause-restart').addEventListener('click', startRound);
 document.getElementById('btn-pause-menu').addEventListener('click', returnToMenu);
-document.getElementById('btn-play-again').addEventListener('click', () => { overScreen.style.display = 'none'; startRound(); state = 'play'; });
+document.getElementById('btn-play-again').addEventListener('click', startRound);
 document.getElementById('btn-over-menu').addEventListener('click', returnToMenu);
 
 function returnToMenu() {
@@ -670,7 +732,7 @@ window.addEventListener('keydown', e => {
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
   if (k === ' ' && state === 'title') { startGame(); return; }
   if (k === 'p') togglePause();
-  if (k === 'r' && (state === 'play' || state === 'over')) { startRound(); state = 'play'; }
+  if (k === 'r') startRound();
 
   if (state === 'play') {
     if (fighters[0] && fighters[0].isHuman && !KEY[k] && k === ' ') tryPlaceBomb(fighters[0]);
@@ -767,7 +829,6 @@ function setupJoystick(baseId, knobId, playerIdx) {
   window.addEventListener('touchcancel', () => { if (touchInputs[playerIdx].touchId !== null) resetStick(); });
 }
 
-// Joysticks outside the canvas
 setupJoystick('joy1-base', 'joy1-knob', 0);
 setupJoystick('stick-p1', 'knob-p1', 0);
 setupJoystick('stick-p2', 'knob-p2', 1);
@@ -814,7 +875,6 @@ function isSolid(tx, ty, ent) {
   return false;
 }
 
-// Bounding box collision test with SOLID BODY character collisions (NOT TRANSPARENT)
 function canFit(px, py, ent) {
   const left = px + 8, right = px + T - 9;
   const top = py + 8, bottom = py + T - 9;
@@ -826,7 +886,6 @@ function canFit(px, py, ent) {
     }
   }
 
-  // Physical collision between all alive fighters
   const HITBOX = 24;
   for (const f of fighters) {
     if (f !== ent && f.alive) {
@@ -837,7 +896,6 @@ function canFit(px, py, ent) {
   return true;
 }
 
-// Cardinal Movement with Lane Auto-Centering
 function moveCharacter(ent, reqDirX, reqDirY, speed, dt) {
   if (reqDirX === 0 && reqDirY === 0) return;
   const step = speed * dt;
@@ -858,7 +916,6 @@ function moveCharacter(ent, reqDirX, reqDirY, speed, dt) {
     }
   }
 
-  // Horizontal Move
   if (reqDirX !== 0) {
     const curTy = Math.round(ent.y / T);
     const targetY = curTy * T;
@@ -878,7 +935,6 @@ function moveCharacter(ent, reqDirX, reqDirY, speed, dt) {
     }
   }
 
-  // Vertical Move
   if (reqDirY !== 0) {
     const curTx = Math.round(ent.x / T);
     const targetX = curTx * T;
@@ -922,7 +978,6 @@ function tryPlaceBomb(ent) {
   return true;
 }
 
-// Reveal item under brick
 function revealItem(tx, ty) {
   const k = tx + ',' + ty;
   if (hiddenItems[k]) {
@@ -984,7 +1039,6 @@ function useGlove(ent) {
   if (tileAt(frontTx, frontTy) === 2) {
     const pushTx = frontTx + fx, pushTy = frontTy + fy;
 
-    // Push forward
     if (tileAt(pushTx, pushTy) === 0 && !bombAt(pushTx, pushTy)) {
       map[frontTy][frontTx] = 0;
       map[pushTy][pushTx] = 2;
@@ -997,7 +1051,6 @@ function useGlove(ent) {
       return;
     }
 
-    // Pull backward
     const backTx = curTx - fx, backTy = curTy - fy;
     if (tileAt(backTx, backTy) === 0 && !bombAt(backTx, backTy)) {
       map[frontTy][frontTx] = 0;
@@ -1051,7 +1104,6 @@ function getDangerMap() {
   return danger;
 }
 
-// BFS pathfinder
 function findPath(sx, sy, isGoalFn, isPassableFn) {
   const startK = sx + ',' + sy;
   if (isGoalFn(sx, sy)) return [];
@@ -1089,7 +1141,7 @@ function findSafeEscape(sx, sy, danger) {
   );
 }
 
-// Arena Generator: 4 Corners cleared for 4 Players
+// Arena Generator: 4 corners with guaranteed escape pockets
 function genArena() {
   map = [];
   hiddenItems = {};
@@ -1105,24 +1157,28 @@ function genArena() {
     map.push(row);
   }
 
-  // Bricks (28% density)
+  // Bricks (25% density)
   for (let y = 1; y < ROWS - 1; y++) {
     for (let x = 1; x < COLS - 1; x++) {
       if (map[y][x] === 1) continue;
-      if (Math.random() < 0.28) map[y][x] = 2;
+      if (Math.random() < 0.25) map[y][x] = 2;
     }
   }
 
-  // Clear 4 Corners
-  map[1][1] = 0; map[1][2] = 0; map[1][3] = 0; map[2][1] = 0; map[3][1] = 0;
-  map[1][COLS-2] = 0; map[1][COLS-3] = 0; map[1][COLS-4] = 0; map[2][COLS-2] = 0; map[3][COLS-2] = 0;
-  map[ROWS-2][1] = 0; map[ROWS-2][2] = 0; map[ROWS-2][3] = 0; map[ROWS-3][1] = 0; map[ROWS-4][1] = 0;
-  map[ROWS-2][COLS-2] = 0; map[ROWS-2][COLS-3] = 0; map[ROWS-2][COLS-4] = 0; map[ROWS-3][COLS-2] = 0; map[ROWS-4][COLS-2] = 0;
+  // Clear 4 Corners AND ensure safe pillar-cover pockets
+  // P1 Top-Left
+  map[1][1] = 0; map[1][2] = 0; map[1][3] = 0; map[2][1] = 0; map[3][1] = 0; map[3][2] = 0;
+  // P2 Top-Right
+  map[1][COLS-2] = 0; map[1][COLS-3] = 0; map[1][COLS-4] = 0; map[2][COLS-2] = 0; map[3][COLS-2] = 0; map[3][COLS-3] = 0;
+  // P3 Bottom-Left
+  map[ROWS-2][1] = 0; map[ROWS-2][2] = 0; map[ROWS-2][3] = 0; map[ROWS-3][1] = 0; map[ROWS-4][1] = 0; map[ROWS-4][2] = 0;
+  // P4 Bottom-Right
+  map[ROWS-2][COLS-2] = 0; map[ROWS-2][COLS-3] = 0; map[ROWS-2][COLS-4] = 0; map[ROWS-3][COLS-2] = 0; map[ROWS-4][COLS-2] = 0; map[ROWS-4][COLS-3] = 0;
 
   // Clear Center Crossway
   map[5][7] = 0; map[6][7] = 0; map[7][7] = 0; map[6][6] = 0; map[6][8] = 0;
 
-  // Hide 6 items under bricks
+  // Hide items under bricks
   const brickCoords = [];
   for (let y = 1; y < ROWS - 1; y++) {
     for (let x = 1; x < COLS - 1; x++) {
@@ -1141,7 +1197,6 @@ function genArena() {
   explosions = [];
 }
 
-// Apply power-up upgrade (supports BOTH humans AND AI bots!)
 function applyUpgrade(fighter, type) {
   if (type === 'bomb') {
     fighter.maxBombs++;
@@ -1176,9 +1231,9 @@ function applyUpgrade(fighter, type) {
 }
 
 // =========================================================================
-// SUPER-INTELLIGENT & AGGRESSIVE PC BOT AI
+// SUPER-INTELLIGENT & HIGHLY AGGRESSIVE PC BOT AI
 // Includes: Line-of-sight sniping, corridor trapping, greedy item hunting,
-// glove block pushing, and sub-second reaction times!
+// anti-freeze watchdog, and relentless attack loops!
 // =========================================================================
 function updateAI(f, dt, danger) {
   f.bombCooldown -= dt;
@@ -1188,11 +1243,24 @@ function updateAI(f, dt, danger) {
   const fy = Math.floor((f.y + T / 2) / T);
   const isThreatened = danger[fx + ',' + fy];
 
-  // 1. SURVIVAL FIRST: If standing in a danger blast zone, flee with zero hesitation
+  // Anti-stuck watchdog: If bot hasn't moved for 10 frames, reset path and re-plan
+  if (Math.abs(f.x - f.prevX) < 0.2 && Math.abs(f.y - f.prevY) < 0.2) {
+    f.stuckFrames++;
+    if (f.stuckFrames > 8) {
+      f.path = null;
+      f.decisionTimer = 0;
+      f.stuckFrames = 0;
+    }
+  } else {
+    f.stuckFrames = 0;
+  }
+  f.prevX = f.x; f.prevY = f.y;
+
+  // 1. SURVIVAL: Flee danger zone
   if (isThreatened) {
     if (f.mode !== 'flee' || !f.path || f.path.length === 0 || f.decisionTimer <= 0) {
       f.mode = 'flee';
-      f.decisionTimer = 0.15;
+      f.decisionTimer = 0.12;
       f.path = findSafeEscape(fx, fy, danger);
     }
   } else {
@@ -1201,15 +1269,14 @@ function updateAI(f, dt, danger) {
       f.path = null;
     }
 
-    // Find closest alive opponent (human prioritized!)
+    // Target closest alive opponent
     let nearestTarget = null, minDist = 999;
     for (const other of fighters) {
       if (other !== f && other.alive) {
         const ox = Math.floor((other.x + T / 2) / T);
         const oy = Math.floor((other.y + T / 2) / T);
         let d = Math.abs(fx - ox) + Math.abs(fy - oy);
-        // Prioritize hunting human player
-        if (other.isHuman) d *= 0.7;
+        if (other.isHuman) d *= 0.8;
         if (d < minDist) { minDist = d; nearestTarget = other; }
       }
     }
@@ -1237,9 +1304,8 @@ function updateAI(f, dt, danger) {
       }
     }
 
-    // 3. AGGRESSIVE BOMB ATTACK: Trap, Snipe, or Blast
+    // 3. AGGRESSIVE BOMB ATTACK
     if (nearestTarget && f.bombCooldown <= 0 && (minDist <= 2 || inSnipeLine)) {
-      // Simulate bomb drop safety check
       const simDanger = Object.assign({}, danger);
       simDanger[fx + ',' + fy] = true;
       for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
@@ -1253,14 +1319,14 @@ function updateAI(f, dt, danger) {
       const escape = findSafeEscape(fx, fy, simDanger);
       if (escape && escape.length > 0) {
         tryPlaceBomb(f);
-        f.bombCooldown = 1.6 + Math.random() * 0.6; // Quick re-arm
+        f.bombCooldown = 1.4 + Math.random() * 0.5;
         f.mode = 'flee';
         f.path = escape;
-        f.decisionTimer = 0.2;
+        f.decisionTimer = 0.15;
       }
     }
 
-    // 4. POWER GLOVE LETHAL PUSH: If holding glove and facing block with opponent behind it
+    // 4. POWER GLOVE ATTACK
     if (f.hasGlove && nearestTarget) {
       for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
         const brickTx = fx + dx, brickTy = fy + dy;
@@ -1273,11 +1339,11 @@ function updateAI(f, dt, danger) {
       }
     }
 
-    // 5. STRATEGIC PATHFINDING (Items vs Predictive Intercept)
+    // 5. STRATEGIC PATHFINDING
     if (f.mode !== 'flee' && f.decisionTimer <= 0) {
-      f.decisionTimer = 0.12; // Fast sub-second reaction loop
+      f.decisionTimer = 0.10; // Rapid sub-second re-planning
 
-      // A. Greedy Item Snatches: If good power-up is nearby, snatch it!
+      // A. Grab nearby exposed power-ups
       let bestItem = null, bestItemDist = 999;
       for (const it of groundItems) {
         if (!danger[it.x + ',' + it.y]) {
@@ -1297,7 +1363,7 @@ function updateAI(f, dt, danger) {
         );
       }
 
-      // B. Predictive Player Intercept: Head off where player is moving
+      // B. Predictive Player Intercept
       if (!f.path && nearestTarget) {
         const predOx = ox + (nearestTarget.dx || 0);
         const predOy = oy + (nearestTarget.dy || 0);
@@ -1310,7 +1376,7 @@ function updateAI(f, dt, danger) {
           (nx, ny) => passable(nx, ny) && !bombAt(nx, ny) && !danger[nx + ',' + ny]
         );
 
-        // C. Aggressive Brick Breaker: If path is blocked, blast through bricks towards target
+        // C. Aggressive Brick Breaker: Blast path towards opponent!
         if (!f.path) {
           const brickPath = findPath(
             fx, fy,
@@ -1329,7 +1395,7 @@ function updateAI(f, dt, danger) {
                 const escape = findSafeEscape(fx, fy, simDanger);
                 if (escape && escape.length > 0) {
                   tryPlaceBomb(f);
-                  f.bombCooldown = 2.2;
+                  f.bombCooldown = 2.0;
                   f.mode = 'flee';
                   f.path = escape;
                 }
@@ -1343,7 +1409,7 @@ function updateAI(f, dt, danger) {
     }
   }
 
-  // Follow planned path with auto-centering
+  // Follow path
   let dirX = 0, dirY = 0;
   if (f.path && f.path.length > 0) {
     const next = f.path[0];
@@ -1440,10 +1506,84 @@ function updateHUD() {
       livesEl.textContent = f.alive ? f.lives : 'KO';
     }
   }
+
+  // Format 3-minute countdown timer
+  const displayTime = Math.max(0, Math.ceil(roundTimeLeft));
+  const mins = Math.floor(displayTime / 60);
+  const secs = displayTime % 60;
+  timerTextEl.textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+
+  if (roundTimeLeft <= 30 && state === 'play') {
+    hudTimerEl.classList.add('doom');
+  } else {
+    hudTimerEl.classList.remove('doom');
+  }
+}
+
+// =========================================================================
+// DOOM MODE: Spiral Rain of Bombs from Outer Loop to Inner Loop
+// =========================================================================
+function triggerDoomStep() {
+  if (doomIndex >= doomSpiral.length) return;
+
+  const target = doomSpiral[doomIndex++];
+  const tx = target.x, ty = target.y;
+
+  // Drop a catastrophic doom bomb / meteor block
+  map[ty][tx] = 1; // Solidifies into permanent hard block
+  addFire(tx, ty, true); // Fierce blue explosion
+
+  // Heavy crash sound
+  beep(85, 0.2, 'sawtooth', 0.12);
+
+  // Eliminate any fighter standing on this tile
+  for (const f of fighters) {
+    if (f.alive) {
+      const fx = Math.floor((f.x + T / 2) / T);
+      const fy = Math.floor((f.y + T / 2) / T);
+      if (fx === tx && fy === ty) {
+        killFighter(f);
+        banner = "💀 " + f.name + " SQUASHED BY DOOM BOMB!";
+        bannerT = 1.5;
+      }
+    }
+  }
+
+  // Remove any items/bombs on that tile
+  groundItems = groundItems.filter(it => !(it.x === tx && it.y === ty));
+  bombs = bombs.filter(b => !(b.x === tx && b.y === ty));
 }
 
 function update(dt) {
   t += dt;
+
+  // 3-Minute Timer Countdown
+  if (state === 'play') {
+    roundTimeLeft -= dt;
+
+    // 30 Seconds Left: ACTIVATE DOOM MODE!
+    if (roundTimeLeft <= 30 && !doomActive) {
+      doomActive = true;
+      doomSirenSound();
+      banner = "⚠️ HURRY UP! DOOM MODE ACTIVATED! ⚠️";
+      bannerT = 3.0;
+    }
+
+    // During Doom Mode: Release falling bombs along the spiral from outer to inner loop
+    if (doomActive) {
+      doomTimer += dt;
+      // Drop a doom bomb every 0.20s in spiral order
+      if (doomTimer >= 0.20) {
+        doomTimer = 0;
+        triggerDoomStep();
+      }
+    }
+
+    if (roundTimeLeft <= 0) {
+      roundTimeLeft = 0;
+    }
+  }
+
   const danger = getDangerMap();
 
   for (const f of fighters) {
@@ -1492,6 +1632,7 @@ function update(dt) {
   }
 
   if (bannerT > 0) bannerT -= dt;
+  updateHUD();
 }
 
 // Rendering
@@ -1619,7 +1760,6 @@ function drawFire(f) {
   }
 }
 
-// Draw Fighter (Solid, Opaque with Color & Contact Shadow)
 function drawFighter(f) {
   const px = f.x + 4, py = f.y + 4, s = T - 8;
 
@@ -1688,12 +1828,12 @@ function draw() {
   }
 
   if (bannerT > 0 && state === 'play') {
-    ctx.fillStyle = 'rgba(0,0,0,0.72)';
-    ctx.fillRect(canvas.width / 2 - 180, 24, 360, 40);
+    ctx.fillStyle = doomActive ? 'rgba(180,0,30,0.85)' : 'rgba(0,0,0,0.75)';
+    ctx.fillRect(canvas.width / 2 - 190, 24, 380, 42);
     ctx.fillStyle = '#ffd166';
-    ctx.font = 'bold 16px monospace';
+    ctx.font = 'bold 15px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(banner, canvas.width / 2, 49);
+    ctx.fillText(banner, canvas.width / 2, 50);
   }
 }
 
