@@ -7,6 +7,6 @@
     "start": "npx serve ."
   },
   "keywords": ["game", "bomberman", "html5", "canvas"],
-  "author": "jli234",
+  "author": "liyanngai1980",
   "license": "UNLICENSED"
 }
