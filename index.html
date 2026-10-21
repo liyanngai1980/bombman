@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>BombMan - 4 Player Battle</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -401,7 +404,7 @@
 </style>
 </head>
 <body class="mode-1p">
-<h1>BOMBMAN</h1>
+<h1>BOMBMAN <span style="font-size:11px; color:#2ec4b6; vertical-align:middle; letter-spacing:1px; background:rgba(46,196,182,0.15); padding:2px 6px; border-radius:6px; border:1px solid #2ec4b6;">v1.3 PRO TOUCH</span></h1>
 
 <div id="hud">
   <span class="hud-badge timer-badge" id="hud-timer">⏱ <b id="timer-text">03:00</b></span>
@@ -773,8 +776,13 @@ function setupJoystick(baseId, knobId, playerIdx) {
   const knob = document.getElementById(knobId);
   if (!base || !knob) return;
 
+  // Track active pointer per joystick instance so hidden/other joysticks never interfere
+  let myPointerId = null;
+
   function updateStick(clientX, clientY) {
     const rect = base.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return; // Ignore if hidden (display: none)
+
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
     const rawDx = clientX - cx;
@@ -827,7 +835,7 @@ function setupJoystick(baseId, knobId, playerIdx) {
   }
 
   function resetStick() {
-    touchInputs[playerIdx].pointerId = null;
+    myPointerId = null;
     touchInputs[playerIdx].dx = 0;
     touchInputs[playerIdx].dy = 0;
     touchInputs[playerIdx].altDx = 0;
@@ -839,26 +847,43 @@ function setupJoystick(baseId, knobId, playerIdx) {
   // Pointer Events handling (supports Touch + Mouse + Stylus seamlessly)
   base.addEventListener('pointerdown', e => {
     e.preventDefault();
-    touchInputs[playerIdx].pointerId = e.pointerId;
+    myPointerId = e.pointerId;
     try { base.setPointerCapture(e.pointerId); } catch (_) {}
     knob.style.transition = 'none';
     updateStick(e.clientX, e.clientY);
   }, { passive: false });
 
+  base.addEventListener('pointermove', e => {
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
+    e.preventDefault();
+    updateStick(e.clientX, e.clientY);
+  }, { passive: false });
+
+  base.addEventListener('pointerup', e => {
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
+    try { base.releasePointerCapture(e.pointerId); } catch (_) {}
+    resetStick();
+  });
+
+  base.addEventListener('pointercancel', e => {
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
+    resetStick();
+  });
+
+  // Window fallback in case pointer capture is lost
   window.addEventListener('pointermove', e => {
-    if (touchInputs[playerIdx].pointerId === null || touchInputs[playerIdx].pointerId !== e.pointerId) return;
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
     e.preventDefault();
     updateStick(e.clientX, e.clientY);
   }, { passive: false });
 
   window.addEventListener('pointerup', e => {
-    if (touchInputs[playerIdx].pointerId === null || touchInputs[playerIdx].pointerId !== e.pointerId) return;
-    try { base.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
     resetStick();
   });
 
   window.addEventListener('pointercancel', e => {
-    if (touchInputs[playerIdx].pointerId === null || touchInputs[playerIdx].pointerId !== e.pointerId) return;
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
     resetStick();
   });
 }
