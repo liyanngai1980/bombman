@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>BombMan - 4 Player Network Battle</title>
 <script src="peerjs.min.js"></script>
 <style>
@@ -290,34 +293,42 @@
     margin-top: 8px;
     justify-content: space-between;
     align-items: center;
-    padding: 4px 14px;
+    padding: 6px 16px;
     background: #141428;
     border-radius: 18px;
     border: 1px solid #2f2f50;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   #joy1-base {
     position: relative;
-    width: 108px;
-    height: 108px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(43,127,255,0.25) 100%);
-    border: 2px solid #2b7fff;
-    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(43,127,255,0.22) 100%);
+    border: 2.5px solid #2b7fff;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.6), 0 0 12px rgba(43,127,255,0.25);
     touch-action: none;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
   }
+  #joy1-base:active { cursor: grabbing; }
   #joy1-knob {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #4c74f5 0%, #203ea8 100%);
     border: 2px solid #fff;
     pointer-events: none;
     transform: translate(0px, 0px);
     transition: transform 0.12s ease-out;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
   }
 
   .act-row {
@@ -427,7 +438,7 @@
   .pod-btn.push { width: 56px; height: 26px; background: #33334d; font-size: 9px; opacity: 0.5; }
   .pod-btn.push.active { background: #fb8500; opacity: 1; color: #121220; }
 
-  @media (pointer: coarse), (max-width: 768px) {
+  @media (pointer: coarse), (max-width: 900px) {
     body.mode-1p #controls-1p { display: flex; }
     body.mode-multi .multi-bar { display: flex; }
     #desktop-msg { display: none; }
@@ -443,7 +454,7 @@
 </style>
 </head>
 <body class="mode-1p">
-<h1>BOMBMAN</h1>
+<h1>BOMBMAN <span style="font-size:11px; color:#2ec4b6; vertical-align:middle; letter-spacing:1px; background:rgba(46,196,182,0.15); padding:2px 6px; border-radius:6px; border:1px solid #2ec4b6;">v1.3 PRO TOUCH</span></h1>
 
 <div id="hud">
   <span class="hud-badge timer-badge" id="hud-timer">⏱ <b id="timer-text">03:00</b></span>
@@ -1068,10 +1079,10 @@ window.addEventListener('blur', () => { for (const k in KEY) KEY[k] = false; });
 
 // Multi-Touch Controllers
 const touchInputs = [
-  { dx: 0, dy: 0, touchId: null },
-  { dx: 0, dy: 0, touchId: null },
-  { dx: 0, dy: 0, touchId: null },
-  { dx: 0, dy: 0, touchId: null }
+  { dx: 0, dy: 0, altDx: 0, altDy: 0, pointerId: null },
+  { dx: 0, dy: 0, altDx: 0, altDy: 0, pointerId: null },
+  { dx: 0, dy: 0, altDx: 0, altDy: 0, pointerId: null },
+  { dx: 0, dy: 0, altDx: 0, altDy: 0, pointerId: null }
 ];
 
 function setupJoystick(baseId, knobId, playerIdx) {
@@ -1079,15 +1090,20 @@ function setupJoystick(baseId, knobId, playerIdx) {
   const knob = document.getElementById(knobId);
   if (!base || !knob) return;
 
+  // Track active pointer per joystick instance so hidden/other joysticks never interfere
+  let myPointerId = null;
+
   function updateStick(clientX, clientY) {
     const rect = base.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return; // Ignore if hidden (display: none)
+
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
     const rawDx = clientX - cx;
     const rawDy = clientY - cy;
     const dist = Math.hypot(rawDx, rawDy);
-    const maxR = rect.width / 2 - 8;
-    const deadzone = 10;
+    const maxR = (rect.width / 2) - 6;
+    const deadzone = 8;
 
     let targetIdx = playerIdx;
     if (isNetworkGame && !isHost) targetIdx = myNetworkSlot;
@@ -1095,71 +1111,102 @@ function setupJoystick(baseId, knobId, playerIdx) {
     if (dist < deadzone) {
       touchInputs[targetIdx].dx = 0;
       touchInputs[targetIdx].dy = 0;
+      touchInputs[targetIdx].altDx = 0;
+      touchInputs[targetIdx].altDy = 0;
       knob.style.transform = 'translate(0px, 0px)';
       if (isNetworkGame && !isHost) sendClientInput(0, 0, false, false);
-    } else {
-      const clamp = Math.min(dist, maxR);
-      knob.style.transform = `translate(${(rawDx/dist)*clamp}px, ${(rawDy/dist)*clamp}px)`;
-      let dx = 0, dy = 0;
-      if (Math.abs(rawDx) > Math.abs(rawDy)) {
-        dx = Math.sign(rawDx);
-      } else {
-        dy = Math.sign(rawDy);
-      }
-      touchInputs[targetIdx].dx = dx;
-      touchInputs[targetIdx].dy = dy;
-      if (isNetworkGame && !isHost) sendClientInput(dx, dy, false, false);
+      return;
     }
+
+    const clamp = Math.min(dist, maxR);
+    knob.style.transform = `translate(${(rawDx / dist) * clamp}px, ${(rawDy / dist) * clamp}px)`;
+
+    const absX = Math.abs(rawDx);
+    const absY = Math.abs(rawDy);
+    const signX = Math.sign(rawDx);
+    const signY = Math.sign(rawDy);
+
+    // Primary and alternative directions for smooth corner turning:
+    if (absX > absY * 1.35) {
+      touchInputs[targetIdx].dx = signX;
+      touchInputs[targetIdx].dy = 0;
+      touchInputs[targetIdx].altDx = 0;
+      touchInputs[targetIdx].altDy = signY;
+    } else if (absY > absX * 1.35) {
+      touchInputs[targetIdx].dx = 0;
+      touchInputs[targetIdx].dy = signY;
+      touchInputs[targetIdx].altDx = signX;
+      touchInputs[targetIdx].altDy = 0;
+    } else {
+      if (absX >= absY) {
+        touchInputs[targetIdx].dx = signX;
+        touchInputs[targetIdx].dy = 0;
+        touchInputs[targetIdx].altDx = 0;
+        touchInputs[targetIdx].altDy = signY;
+      } else {
+        touchInputs[targetIdx].dx = 0;
+        touchInputs[targetIdx].dy = signY;
+        touchInputs[targetIdx].altDx = signX;
+        touchInputs[targetIdx].altDy = 0;
+      }
+    }
+    if (isNetworkGame && !isHost) sendClientInput(touchInputs[targetIdx].dx, touchInputs[targetIdx].dy, false, false);
   }
 
   function resetStick() {
     let targetIdx = playerIdx;
     if (isNetworkGame && !isHost) targetIdx = myNetworkSlot;
-    touchInputs[targetIdx].touchId = null;
+    myPointerId = null;
     touchInputs[targetIdx].dx = 0;
     touchInputs[targetIdx].dy = 0;
-    knob.style.transition = 'transform 0.15s ease-out';
+    touchInputs[targetIdx].altDx = 0;
+    touchInputs[targetIdx].altDy = 0;
+    knob.style.transition = 'transform 0.12s ease-out';
     knob.style.transform = 'translate(0px, 0px)';
     if (isNetworkGame && !isHost) sendClientInput(0, 0, false, false);
   }
 
-  base.addEventListener('touchstart', e => {
+  // Pointer Events handling (supports Touch + Mouse + Stylus seamlessly)
+  base.addEventListener('pointerdown', e => {
     e.preventDefault();
-    const tc = e.changedTouches[0];
-    let targetIdx = playerIdx;
-    if (isNetworkGame && !isHost) targetIdx = myNetworkSlot;
-    touchInputs[targetIdx].touchId = tc.identifier;
+    myPointerId = e.pointerId;
+    try { base.setPointerCapture(e.pointerId); } catch (_) {}
     knob.style.transition = 'none';
-    updateStick(tc.clientX, tc.clientY);
+    updateStick(e.clientX, e.clientY);
   }, { passive: false });
 
-  window.addEventListener('touchmove', e => {
-    let targetIdx = playerIdx;
-    if (isNetworkGame && !isHost) targetIdx = myNetworkSlot;
-    if (touchInputs[targetIdx].touchId === null) return;
-    for (const tc of e.changedTouches) {
-      if (tc.identifier === touchInputs[targetIdx].touchId) {
-        updateStick(tc.clientX, tc.clientY);
-        break;
-      }
-    }
+  base.addEventListener('pointermove', e => {
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
+    e.preventDefault();
+    updateStick(e.clientX, e.clientY);
   }, { passive: false });
 
-  window.addEventListener('touchend', e => {
-    let targetIdx = playerIdx;
-    if (isNetworkGame && !isHost) targetIdx = myNetworkSlot;
-    if (touchInputs[targetIdx].touchId === null) return;
-    for (const tc of e.changedTouches) {
-      if (tc.identifier === touchInputs[targetIdx].touchId) {
-        resetStick();
-        break;
-      }
-    }
+  base.addEventListener('pointerup', e => {
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
+    try { base.releasePointerCapture(e.pointerId); } catch (_) {}
+    resetStick();
   });
-  window.addEventListener('touchcancel', () => {
-    let targetIdx = playerIdx;
-    if (isNetworkGame && !isHost) targetIdx = myNetworkSlot;
-    if (touchInputs[targetIdx].touchId !== null) resetStick();
+
+  base.addEventListener('pointercancel', e => {
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
+    resetStick();
+  });
+
+  // Window fallback in case pointer capture is lost
+  window.addEventListener('pointermove', e => {
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
+    e.preventDefault();
+    updateStick(e.clientX, e.clientY);
+  }, { passive: false });
+
+  window.addEventListener('pointerup', e => {
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
+    resetStick();
+  });
+
+  window.addEventListener('pointercancel', e => {
+    if (myPointerId === null || myPointerId !== e.pointerId) return;
+    resetStick();
   });
 }
 
@@ -1172,8 +1219,10 @@ setupJoystick('stick-p4', 'knob-p4', 3);
 function bindActionBtn(btnId, actionFn) {
   const el = document.getElementById(btnId);
   if (!el) return;
-  el.addEventListener('touchstart', e => { e.preventDefault(); if (state === 'play') actionFn(); }, { passive: false });
-  el.addEventListener('click', () => { if (state === 'play') actionFn(); });
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (state === 'play') actionFn();
+  }, { passive: false });
 }
 
 bindActionBtn('btn-p1-bomb',   () => { if (isNetworkGame && !isHost) sendClientInput(touchInputs[myNetworkSlot].dx, touchInputs[myNetworkSlot].dy, true, false); else tryPlaceBomb(fighters[0]); });
@@ -1230,8 +1279,80 @@ function canFit(px, py, ent) {
   return true;
 }
 
-function moveCharacter(ent, reqDirX, reqDirY, speed, dt) {
-  if (reqDirX === 0 && reqDirY === 0) return;
+function tryMoveAxis(ent, dirX, dirY, step) {
+  if (dirX !== 0) {
+    const targetX = ent.x + dirX * step;
+    if (canFit(targetX, ent.y, ent)) {
+      ent.x = targetX;
+      const curTy = Math.round(ent.y / T);
+      const targetY = curTy * T;
+      const diffY = targetY - ent.y;
+      if (Math.abs(diffY) > 0.5 && canFit(ent.x, targetY, ent)) {
+        ent.y += Math.sign(diffY) * Math.min(Math.abs(diffY), step * 1.2);
+      }
+      return true;
+    }
+
+    // Corner assistance: if clipped on top or bottom edge by a corner block
+    const curTy = Math.round(ent.y / T);
+    const targetY = curTy * T;
+    const diffY = targetY - ent.y;
+    if (Math.abs(diffY) <= 14 && Math.abs(diffY) > 0.5) {
+      const nudgeY = ent.y + Math.sign(diffY) * Math.min(Math.abs(diffY), step * 1.5);
+      if (canFit(ent.x, nudgeY, ent)) {
+        ent.y = nudgeY;
+        if (canFit(targetX, ent.y, ent)) ent.x = targetX;
+        return true;
+      }
+    }
+
+    for (let s = step * 0.75; s >= 0.5; s *= 0.5) {
+      if (canFit(ent.x + dirX * s, ent.y, ent)) {
+        ent.x += dirX * s;
+        return true;
+      }
+    }
+  }
+
+  if (dirY !== 0) {
+    const targetY = ent.y + dirY * step;
+    if (canFit(ent.x, targetY, ent)) {
+      ent.y = targetY;
+      const curTx = Math.round(ent.x / T);
+      const targetX = curTx * T;
+      const diffX = targetX - ent.x;
+      if (Math.abs(diffX) > 0.5 && canFit(targetX, ent.y, ent)) {
+        ent.x += Math.sign(diffX) * Math.min(Math.abs(diffX), step * 1.2);
+      }
+      return true;
+    }
+
+    // Corner assistance: if clipped on left or right edge by a corner block
+    const curTx = Math.round(ent.x / T);
+    const targetX = curTx * T;
+    const diffX = targetX - ent.x;
+    if (Math.abs(diffX) <= 14 && Math.abs(diffX) > 0.5) {
+      const nudgeX = ent.x + Math.sign(diffX) * Math.min(Math.abs(diffX), step * 1.5);
+      if (canFit(nudgeX, ent.y, ent)) {
+        ent.x = nudgeX;
+        if (canFit(ent.x, targetY, ent)) ent.y = targetY;
+        return true;
+      }
+    }
+
+    for (let s = step * 0.75; s >= 0.5; s *= 0.5) {
+      if (canFit(ent.x, ent.y + dirY * s, ent)) {
+        ent.y += dirY * s;
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function moveCharacter(ent, reqDirX, reqDirY, speed, dt, altDirX = 0, altDirY = 0) {
+  if (reqDirX === 0 && reqDirY === 0 && altDirX === 0 && altDirY === 0) return;
   const step = speed * dt;
 
   if (reqDirX !== 0) { ent.facingX = reqDirX; ent.facingY = 0; }
@@ -1250,41 +1371,18 @@ function moveCharacter(ent, reqDirX, reqDirY, speed, dt) {
     }
   }
 
-  if (reqDirX !== 0) {
-    const curTy = Math.round(ent.y / T);
-    const targetY = curTy * T;
-    const diffY = targetY - ent.y;
-    if (Math.abs(diffY) > 0.5) {
-      ent.y += Math.sign(diffY) * Math.min(Math.abs(diffY), step * 1.5);
-      if (Math.abs(targetY - ent.y) < 1) ent.y = targetY;
-    }
-
-    const targetX = ent.x + reqDirX * step;
-    if (canFit(targetX, ent.y, ent)) {
-      ent.x = targetX;
-    } else {
-      for (let s = step; s >= 0.5; s *= 0.5) {
-        if (canFit(ent.x + reqDirX * s, ent.y, ent)) { ent.x += reqDirX * s; break; }
-      }
-    }
+  // 1. Try primary requested direction
+  let moved = false;
+  if (reqDirX !== 0 || reqDirY !== 0) {
+    moved = tryMoveAxis(ent, reqDirX, reqDirY, step);
   }
 
-  if (reqDirY !== 0) {
-    const curTx = Math.round(ent.x / T);
-    const targetX = curTx * T;
-    const diffX = targetX - ent.x;
-    if (Math.abs(diffX) > 0.5) {
-      ent.x += Math.sign(diffX) * Math.min(Math.abs(diffX), step * 1.5);
-      if (Math.abs(targetX - ent.x) < 1) ent.x = targetX;
-    }
-
-    const targetY = ent.y + reqDirY * step;
-    if (canFit(ent.x, targetY, ent)) {
-      ent.y = targetY;
-    } else {
-      for (let s = step; s >= 0.5; s *= 0.5) {
-        if (canFit(ent.x, ent.y + reqDirY * s, ent)) { ent.y += reqDirY * s; break; }
-      }
+  // 2. If primary is completely blocked, try alternative / diagonal component
+  if (!moved && (altDirX !== 0 || altDirY !== 0)) {
+    moved = tryMoveAxis(ent, altDirX, altDirY, step);
+    if (moved) {
+      if (altDirX !== 0) { ent.facingX = altDirX; ent.facingY = 0; }
+      else if (altDirY !== 0) { ent.facingX = 0; ent.facingY = altDirY; }
     }
   }
 }
@@ -1789,12 +1887,15 @@ function getHumanInput(idx) {
     else if (KEY['5']) dy = 1;
   }
 
+  let altDx = 0, altDy = 0;
   if (touchInputs[idx] && (touchInputs[idx].dx !== 0 || touchInputs[idx].dy !== 0)) {
     dx = touchInputs[idx].dx;
     dy = touchInputs[idx].dy;
+    altDx = touchInputs[idx].altDx || 0;
+    altDy = touchInputs[idx].altDy || 0;
   }
 
-  return { dx, dy };
+  return { dx, dy, altDx, altDy };
 }
 
 function killFighter(f, killer) {
@@ -1996,7 +2097,7 @@ function update(dt) {
     if (f.isHuman) {
       const inp = getHumanInput(f.id);
       f.dx = inp.dx; f.dy = inp.dy;
-      moveCharacter(f, inp.dx, inp.dy, f.speed, dt);
+      moveCharacter(f, inp.dx, inp.dy, f.speed, dt, inp.altDx, inp.altDy);
     } else {
       updateAI(f, dt, danger);
     }

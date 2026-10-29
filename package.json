@@ -4,9 +4,10 @@
   "description": "BombMan HTML5 Arcade Game",
   "main": "index.html",
   "scripts": {
-    "start": "npx serve ."
+    "start": "npx serve .",
+    "build": "mkdir -p dist && cp index.html dist/"
   },
   "keywords": ["game", "bomberman", "html5", "canvas"],
-  "author": "jli234",
+  "author": "liyanngai1980",
   "license": "UNLICENSED"
 }
